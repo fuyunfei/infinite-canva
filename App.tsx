@@ -300,11 +300,7 @@ const App: React.FC = () => {
     <div>
       <SearchBar onSearch={handleSearch} onRandom={handleRandom} isLoading={isLoading} />
       
-      <header style={{ textAlign: 'center', marginBottom: '1rem' }}>
-        <h1 style={{ letterSpacing: '0.2em', textTransform: 'uppercase', margin: '0 0 1rem 0' }}>
-          INFINITE WIKI
-        </h1>
-      </header>
+
       
       <main className="app-container" style={{ display: 'flex', gap: '1rem', height: 'calc(100vh - 120px)' }}>
         <aside className="sidebar" style={{ 
@@ -328,9 +324,6 @@ const App: React.FC = () => {
         
         <div className="main-content" style={{ flex: 1, display: 'flex', flexDirection: 'column', overflowY: 'auto' }}>
           <div className="content-header" style={{ marginBottom: '1rem' }}>
-            <h2 style={{ margin: '0 0 1rem 0', textTransform: 'capitalize' }}>
-              {currentTopic}
-            </h2>
             
             <div className="ascii-art-section" style={{ 
               display: 'flex', 
