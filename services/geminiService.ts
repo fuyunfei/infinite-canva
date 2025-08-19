@@ -1,0 +1,247 @@
+/**
+ * @license
+ * SPDX-License-Identifier: Apache-2.0
+*/
+
+import {GoogleGenAI} from '@google/genai';
+
+// This check is for development-time feedback.
+if (!process.env.API_KEY) {
+  console.error(
+    'API_KEY environment variable is not set. The application will not be able to connect to the Gemini API.',
+  );
+}
+
+// The "!" asserts API_KEY is non-null after the check.
+const ai = new GoogleGenAI({apiKey: process.env.API_KEY!});
+const artModelName = 'gemini-2.5-flash';
+const textModelName = 'gemini-2.5-flash';
+/**
+ * Art-direction toggle for ASCII art generation.
+ * `true`: Slower, higher-quality results (allows the model to "think").
+ * `false`: Faster, potentially lower-quality results (skips thinking).
+ */
+const ENABLE_THINKING_FOR_ASCII_ART = false;
+
+/**
+ * Art-direction toggle for blocky ASCII text generation.
+ * `true`: Generates both creative art and blocky text for the topic name.
+ * `false`: Generates only the creative ASCII art.
+ */
+const ENABLE_ASCII_TEXT_GENERATION = false;
+
+export interface AsciiArtData {
+  art: string;
+  text?: string; // Text is now optional
+}
+export interface CardData {
+  title: string;
+  content: string;
+}
+
+export type CardStreamChunk = 
+  | { type: 'title'; value: string }
+  | { type: 'content'; value: string }
+  | { type: 'separator' };
+
+
+/**
+ * Generates associative content from the Gemini API as a real-time stream of card data.
+ * @param topic The word or term to define.
+ * @param previousTopic The previous topic the user was viewing, if any.
+ * @param onChunk A callback function that receives parsed chunks of the stream.
+ */
+export async function generateContentCardsStream(
+  topic: string,
+  previousTopic: string | null | undefined,
+  onChunk: (chunk: CardStreamChunk) => void
+): Promise<void> {
+  if (!process.env.API_KEY) {
+    throw new Error('API_KEY is not configured. Please check your environment variables to continue.');
+  }
+
+  // Choose prompt based on whether it's a continuation or a new topic
+  const prompt = previousTopic
+    ? `You are an entry in a surreal, infinite encyclopedia. The user was just reading about "${previousTopic}" and clicked on the word "${topic}". Provide 2-4 distinct sections exploring the connection, relationship, or tangential thoughts between these two concepts. Be creative and insightful. Each section MUST start with a title line formatted as "TITLE: [Your Title Here]". After the title, provide the content in markdown. Separate each section with a line containing only "---". Do not include "---" at the very end.`
+    : `You are a surreal, infinite encyclopedia. For the term "${topic}", answering in chinese, provide 2-4 distinct sections that give a concise, encyclopedia-style definition from different perspectives. Each section MUST start with a title line formatted as "TITLE: [Your Title Here]". After the title, provide the content in markdown. Separate each section with a line containing only "---". Do not include "---" at the very end.`;
+  
+  try {
+    const stream = await ai.models.generateContentStream({
+      model: textModelName,
+      contents: prompt,
+    });
+
+    let buffer = '';
+    let state: 'seeking_title' | 'seeking_content' = 'seeking_title';
+
+    for await (const item of stream) {
+      buffer += item.text;
+
+      // This loop ensures we process all complete parts within the current buffer
+      while (true) {
+        if (state === 'seeking_title') {
+          const titleRegex = /^TITLE: (.*?)\n/;
+          const match = buffer.match(titleRegex);
+          if (match) {
+            onChunk({ type: 'title', value: match[1].trim() });
+            buffer = buffer.substring(match[0].length);
+            state = 'seeking_content';
+          } else {
+            break; // Not enough data for a title, wait for more chunks
+          }
+        }
+
+        if (state === 'seeking_content') {
+          const separator = '\n---\n';
+          const separatorIndex = buffer.indexOf(separator);
+          if (separatorIndex !== -1) {
+            const content = buffer.substring(0, separatorIndex);
+            if (content) onChunk({ type: 'content', value: content });
+            onChunk({ type: 'separator' });
+            buffer = buffer.substring(separatorIndex + separator.length);
+            state = 'seeking_title';
+          } else {
+            break; // No separator found, wait for more chunks
+          }
+        }
+      }
+    }
+
+    // After the stream finishes, any remaining data in the buffer is the final content
+    if (buffer) {
+      onChunk({ type: 'content', value: buffer });
+    }
+  } catch (error) {
+    console.error('Error generating streaming content from Gemini:', error);
+    const errorMessage =
+      error instanceof Error ? error.message : 'An unknown error occurred.';
+    throw new Error(`Could not generate content for "${topic}". ${errorMessage}`);
+  }
+}
+
+/**
+ * Generates a single random word or concept using the Gemini API.
+ * @returns A promise that resolves to a single random word.
+ */
+export async function getRandomWord(): Promise<string> {
+  if (!process.env.API_KEY) {
+    throw new Error('API_KEY is not configured.');
+  }
+
+  const prompt = `Generate a single, random, interesting word or a two-word concept. It can be a noun, verb, adjective, or a proper noun. Respond with only the word or concept itself, with no extra text, punctuation, or formatting.`;
+
+  try {
+    const response = await ai.models.generateContent({
+      model: textModelName,
+      contents: prompt,
+      config: {
+        // Disable thinking for low latency.
+        thinkingConfig: { thinkingBudget: 0 },
+      },
+    });
+    return response.text.trim();
+  } catch (error) {
+    console.error('Error getting random word from Gemini:', error);
+    const errorMessage =
+      error instanceof Error ? error.message : 'An unknown error occurred.';
+    throw new Error(`Could not get random word: ${errorMessage}`);
+  }
+}
+
+/**
+ * Generates ASCII art and optionally text for a given topic.
+ * @param topic The topic to generate art for.
+ * @returns A promise that resolves to an object with art and optional text.
+ */
+export async function generateAsciiArt(topic: string): Promise<AsciiArtData> {
+  if (!process.env.API_KEY) {
+    throw new Error('API_KEY is not configured.');
+  }
+  
+  const artPromptPart = `1. "art": meta ASCII visualization of the word "${topic}":
+  - Palette: │─┌┐└┘├┤┬┴┼►◄▲▼○●◐◑░▒▓█▀▄■□▪▫★☆♦♠♣♥⟨⟩/\\_|
+  - Shape mirrors concept - make the visual form embody the word's essence
+  - Examples: 
+    * "explosion" → radiating lines from center
+    * "hierarchy" → pyramid structure
+    * "flow" → curved directional lines
+  - Return as single string with \n for line breaks`;
+
+
+  const keysDescription = `one key: "art"`;
+  const promptBody = artPromptPart;
+
+  const prompt = `For "${topic}", create a JSON object with ${keysDescription}.
+${promptBody}
+
+Return ONLY the raw JSON object, no additional text. The response must start with "{" and end with "}" and contain only the art property.`;
+
+  const maxRetries = 1;
+  let lastError: Error | null = null;
+
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      // FIX: Construct config object conditionally to avoid spreading a boolean
+      const config: any = {
+        responseMimeType: 'application/json',
+      };
+      if (!ENABLE_THINKING_FOR_ASCII_ART) {
+        config.thinkingConfig = { thinkingBudget: 0 };
+      }
+
+      const response = await ai.models.generateContent({
+        model: artModelName,
+        contents: prompt,
+        config: config,
+      });
+
+      let jsonStr = response.text.trim();
+      
+      // Debug logging
+      console.log(`Attempt ${attempt}/${maxRetries} - Raw API response:`, jsonStr);
+      
+      // Remove any markdown code fences if present
+      const fenceRegex = /^```(?:json)?\s*\n?(.*?)\n?\s*```$/s;
+      const match = jsonStr.match(fenceRegex);
+      if (match && match[1]) {
+        jsonStr = match[1].trim();
+      }
+
+      // Ensure the string starts with { and ends with }
+      if (!jsonStr.startsWith('{') || !jsonStr.endsWith('}')) {
+        throw new Error('Response is not a valid JSON object');
+      }
+
+      const parsedData = JSON.parse(jsonStr) as AsciiArtData;
+      
+      // Validate the response structure
+      if (typeof parsedData.art !== 'string' || parsedData.art.trim().length === 0) {
+        throw new Error('Invalid or empty ASCII art in response');
+      }
+      
+      // If we get here, the validation passed
+      const result: AsciiArtData = {
+        art: parsedData.art,
+      };
+
+      if (ENABLE_ASCII_TEXT_GENERATION && parsedData.text) {
+        result.text = parsedData.text;
+      }
+      
+      return result;
+
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error('Unknown error occurred');
+      console.warn(`Attempt ${attempt}/${maxRetries} failed:`, lastError.message);
+      
+      if (attempt === maxRetries) {
+        console.error('All retry attempts failed for ASCII art generation');
+        throw new Error(`Could not generate ASCII art after ${maxRetries} attempts: ${lastError.message}`);
+      }
+      // Continue to next attempt
+    }
+  }
+
+  // This should never be reached, but just in case
+  throw lastError || new Error('All retry attempts failed');
+}
