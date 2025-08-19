@@ -148,8 +148,8 @@ export async function generateContentCardsStream(
 
   // Choose prompt based on whether it's a continuation or a new topic
   const prompt = previousTopic
-    ? `You are an entry in a surreal, infinite encyclopedia. The user was just reading about "${previousTopic}" and clicked on the word "${topic}". Provide 2-4 distinct sections exploring the connection, relationship, or tangential thoughts between these two concepts. Be creative and insightful within 50 words in total. Each section MUST start with a title line formatted as "TITLE: [Your Title Here]". After the title, provide the content in markdown. Separate each section with a line containing only divided line. .  `
-    : `You are a surreal, infinite encyclopedia. For the term "${topic}", provide 2-4 distinct sections that give a concise, encyclopedia-style definition from different perspectives.  provide the content in markdown. Separate each section with a divided line .   50 words in total `;
+    ? `You are an entry in a surreal, infinite encyclopedia. The user was just reading about "${previousTopic}" and clicked on the word "${topic}". Provide distinct prespective exploring the connection, relationship, or tangential thoughts between these two concepts. provide the content in markdown, you can use all markdown types, list / table / inlines etc. Separate each section with a line containing only divided line. 200 words in total  `
+    : `You are a surreal, infinite encyclopedia. For the term "${topic}", provide few distinct sections that give a concise, encyclopedia-style definition from different perspectives.  provide the content in markdown , provide the content in markdown, you can use all markdown types, list table inlines etc. Separate each section with a divided line .  150 words in total `;
   
   try {
     let buffer = '';
@@ -232,23 +232,16 @@ export async function generateAsciiArt(topic: string): Promise<AsciiArtData> {
     throw new Error('OPENROUTER_API_KEY is not configured.');
   }
   
-  const artPromptPart = `1. "art": meta ASCII horizontal diagram visualization of the word "${topic}":
-  - Palette: │─┌┐└┘├┤┬┴┼►◄▲▼○●◐◑░▒▓█▀▄■□▪▫★☆♦♠♣♥⟨⟩/\\_|
-  - Shape mirrors concept - make the visual form embody the word's essence
-  - Examples: 
-    * "explosion" → radiating lines from center
-    * "hierarchy" → pyramid structure
-    * "flow" → curved directional lines
-  - Return as single string with \n for line breaks`;
+  const artPromptPart = `1. "ASCII art": meta ASCII horizontal diagram visualization of the word "${topic}"`;
 
 
-  const keysDescription = `one key: "art"`;
+  const keysDescription = `one key: "ASCII art"`;
   const promptBody = artPromptPart;
 
   const prompt = `For "${topic}", create a JSON object with ${keysDescription}.
 ${promptBody}
 
-Return ONLY the raw JSON object, no additional text. The response must start with "{" and end with "}" and contain only the art property.`;
+Return ONLY the raw JSON object, no additional text. The response must start with "{" and end with "}" and contain only the ASCII art property.`;
 
   const maxRetries = 1;
   let lastError: Error | null = null;

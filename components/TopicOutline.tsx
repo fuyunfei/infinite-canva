@@ -109,15 +109,7 @@ const TopicOutline: React.FC<TopicOutlineProps> = ({
         marginBottom: '12px',
         padding: '0 8px'
       }}>
-        <h3 style={{
-          margin: '0 0 16px 0',
-          fontSize: '14px',
-          fontWeight: 500,
-          color: '#666',
-          fontFamily: 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif'
-        }}>
-          History
-        </h3>
+
         
         {Object.keys(historyNodes).length > 0 && (
           <button 
