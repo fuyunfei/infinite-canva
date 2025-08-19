@@ -3,19 +3,17 @@
  * SPDX-License-Identifier: Apache-2.0
 */
 
-import {GoogleGenAI} from '@google/genai';
-
-// This check is for development-time feedback.
-if (!process.env.API_KEY) {
+// Check for OpenRouter API key
+if (!process.env.OPENROUTER_API_KEY) {
   console.error(
-    'API_KEY environment variable is not set. The application will not be able to connect to the Gemini API.',
+    'OPENROUTER_API_KEY environment variable is not set. The application will not be able to connect to the OpenRouter API.',
   );
 }
 
-// The "!" asserts API_KEY is non-null after the check.
-const ai = new GoogleGenAI({apiKey: process.env.API_KEY!});
-const artModelName = 'gemini-2.5-flash';
-const textModelName = 'gemini-2.5-flash';
+const OPENROUTER_API_URL = 'https://openrouter.ai/api/v1/chat/completions';
+const artModelName = 'google/gemini-2.5-flash-lite-preview-06-17';
+const textModelName = 'google/gemini-2.5-flash-lite-preview-06-17';
+
 /**
  * Art-direction toggle for ASCII art generation.
  * `true`: Slower, higher-quality results (allows the model to "think").
@@ -44,9 +42,97 @@ export type CardStreamChunk =
   | { type: 'content'; value: string }
   | { type: 'separator' };
 
+/**
+ * Makes a streaming request to OpenRouter API
+ */
+async function* makeOpenRouterStreamRequest(prompt: string, model: string = textModelName) {
+  const response = await fetch(OPENROUTER_API_URL, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
+      'Content-Type': 'application/json',
+      'HTTP-Referer': window.location.origin,
+      'X-Title': 'Infinite Wiki'
+    },
+    body: JSON.stringify({
+      model,
+      messages: [{ role: 'user', content: prompt }],
+      stream: true,
+      temperature: 0.7,
+      max_tokens: 2000
+    })
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`OpenRouter API error: ${response.status} - ${errorText}`);
+  }
+
+  const reader = response.body?.getReader();
+  if (!reader) throw new Error('No response body reader available');
+
+  const decoder = new TextDecoder();
+  let buffer = '';
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split('\n');
+    buffer = lines.pop() || '';
+
+    for (const line of lines) {
+      if (line.startsWith('data: ')) {
+        const data = line.slice(6);
+        if (data === '[DONE]') return;
+        
+        try {
+          const parsed = JSON.parse(data);
+          const content = parsed.choices?.[0]?.delta?.content;
+          if (content) {
+            yield content;
+          }
+        } catch (e) {
+          console.warn('Failed to parse SSE chunk:', e);
+        }
+      }
+    }
+  }
+}
 
 /**
- * Generates associative content from the Gemini API as a real-time stream of card data.
+ * Makes a non-streaming request to OpenRouter API
+ */
+async function makeOpenRouterRequest(prompt: string, model: string = textModelName): Promise<string> {
+  const response = await fetch(OPENROUTER_API_URL, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
+      'Content-Type': 'application/json',
+      'HTTP-Referer': window.location.origin,
+      'X-Title': 'Infinite Wiki'
+    },
+    body: JSON.stringify({
+      model,
+      messages: [{ role: 'user', content: prompt }],
+      stream: false,
+      temperature: 0.7,
+      max_tokens: 2000
+    })
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`OpenRouter API error: ${response.status} - ${errorText}`);
+  }
+
+  const data = await response.json();
+  return data.choices?.[0]?.message?.content || '';
+}
+
+/**
+ * Generates associative content from the OpenRouter API as a real-time stream of card data.
  * @param topic The word or term to define.
  * @param previousTopic The previous topic the user was viewing, if any.
  * @param onChunk A callback function that receives parsed chunks of the stream.
@@ -56,26 +142,21 @@ export async function generateContentCardsStream(
   previousTopic: string | null | undefined,
   onChunk: (chunk: CardStreamChunk) => void
 ): Promise<void> {
-  if (!process.env.API_KEY) {
-    throw new Error('API_KEY is not configured. Please check your environment variables to continue.');
+  if (!process.env.OPENROUTER_API_KEY) {
+    throw new Error('OPENROUTER_API_KEY is not configured. Please check your environment variables to continue.');
   }
 
   // Choose prompt based on whether it's a continuation or a new topic
   const prompt = previousTopic
-    ? `You are an entry in a surreal, infinite encyclopedia. The user was just reading about "${previousTopic}" and clicked on the word "${topic}". Provide 2-4 distinct sections exploring the connection, relationship, or tangential thoughts between these two concepts. Be creative and insightful. Each section MUST start with a title line formatted as "TITLE: [Your Title Here]". After the title, provide the content in markdown. Separate each section with a line containing only "---". Do not include "---" at the very end.`
-    : `You are a surreal, infinite encyclopedia. For the term "${topic}", answering in chinese, provide 2-4 distinct sections that give a concise, encyclopedia-style definition from different perspectives. Each section MUST start with a title line formatted as "TITLE: [Your Title Here]". After the title, provide the content in markdown. Separate each section with a line containing only "---". Do not include "---" at the very end.`;
+    ? `You are an entry in a surreal, infinite encyclopedia. The user was just reading about "${previousTopic}" and clicked on the word "${topic}". Provide 2-4 distinct sections exploring the connection, relationship, or tangential thoughts between these two concepts. Be creative and insightful within 50 words in total. Each section MUST start with a title line formatted as "TITLE: [Your Title Here]". After the title, provide the content in markdown. Separate each section with a line containing only divided line. .  `
+    : `You are a surreal, infinite encyclopedia. For the term "${topic}", provide 2-4 distinct sections that give a concise, encyclopedia-style definition from different perspectives.  provide the content in markdown. Separate each section with a divided line .   50 words in total `;
   
   try {
-    const stream = await ai.models.generateContentStream({
-      model: textModelName,
-      contents: prompt,
-    });
-
     let buffer = '';
     let state: 'seeking_title' | 'seeking_content' = 'seeking_title';
 
-    for await (const item of stream) {
-      buffer += item.text;
+    for await (const chunk of makeOpenRouterStreamRequest(prompt, textModelName)) {
+      buffer += chunk;
 
       // This loop ensures we process all complete parts within the current buffer
       while (true) {
@@ -112,7 +193,7 @@ export async function generateContentCardsStream(
       onChunk({ type: 'content', value: buffer });
     }
   } catch (error) {
-    console.error('Error generating streaming content from Gemini:', error);
+    console.error('Error generating streaming content from OpenRouter:', error);
     const errorMessage =
       error instanceof Error ? error.message : 'An unknown error occurred.';
     throw new Error(`Could not generate content for "${topic}". ${errorMessage}`);
@@ -120,28 +201,21 @@ export async function generateContentCardsStream(
 }
 
 /**
- * Generates a single random word or concept using the Gemini API.
+ * Generates a single random word or concept using the OpenRouter API.
  * @returns A promise that resolves to a single random word.
  */
 export async function getRandomWord(): Promise<string> {
-  if (!process.env.API_KEY) {
-    throw new Error('API_KEY is not configured.');
+  if (!process.env.OPENROUTER_API_KEY) {
+    throw new Error('OPENROUTER_API_KEY is not configured.');
   }
 
   const prompt = `Generate a single, random, interesting word or a two-word concept. It can be a noun, verb, adjective, or a proper noun. Respond with only the word or concept itself, with no extra text, punctuation, or formatting.`;
 
   try {
-    const response = await ai.models.generateContent({
-      model: textModelName,
-      contents: prompt,
-      config: {
-        // Disable thinking for low latency.
-        thinkingConfig: { thinkingBudget: 0 },
-      },
-    });
-    return response.text.trim();
+    const response = await makeOpenRouterRequest(prompt, textModelName);
+    return response.trim();
   } catch (error) {
-    console.error('Error getting random word from Gemini:', error);
+    console.error('Error getting random word from OpenRouter:', error);
     const errorMessage =
       error instanceof Error ? error.message : 'An unknown error occurred.';
     throw new Error(`Could not get random word: ${errorMessage}`);
@@ -154,11 +228,11 @@ export async function getRandomWord(): Promise<string> {
  * @returns A promise that resolves to an object with art and optional text.
  */
 export async function generateAsciiArt(topic: string): Promise<AsciiArtData> {
-  if (!process.env.API_KEY) {
-    throw new Error('API_KEY is not configured.');
+  if (!process.env.OPENROUTER_API_KEY) {
+    throw new Error('OPENROUTER_API_KEY is not configured.');
   }
   
-  const artPromptPart = `1. "art": meta ASCII visualization of the word "${topic}":
+  const artPromptPart = `1. "art": meta ASCII horizontal diagram visualization of the word "${topic}":
   - Palette: │─┌┐└┘├┤┬┴┼►◄▲▼○●◐◑░▒▓█▀▄■□▪▫★☆♦♠♣♥⟨⟩/\\_|
   - Shape mirrors concept - make the visual form embody the word's essence
   - Examples: 
@@ -181,21 +255,8 @@ Return ONLY the raw JSON object, no additional text. The response must start wit
 
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
-      // FIX: Construct config object conditionally to avoid spreading a boolean
-      const config: any = {
-        responseMimeType: 'application/json',
-      };
-      if (!ENABLE_THINKING_FOR_ASCII_ART) {
-        config.thinkingConfig = { thinkingBudget: 0 };
-      }
-
-      const response = await ai.models.generateContent({
-        model: artModelName,
-        contents: prompt,
-        config: config,
-      });
-
-      let jsonStr = response.text.trim();
+      const response = await makeOpenRouterRequest(prompt, artModelName);
+      let jsonStr = response.trim();
       
       // Debug logging
       console.log(`Attempt ${attempt}/${maxRetries} - Raw API response:`, jsonStr);

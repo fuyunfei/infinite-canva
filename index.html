@@ -24,7 +24,7 @@
         padding: 2rem 2rem 5rem 2rem; /* Increased bottom padding for sticky footer */
       }
       #root {
-        max-width: 65ch; /* Optimal line length for readability */
+        max-width: 90%; /* Increase width for better use of screen space */
         margin: auto;
       }
       /* Reset headers to have the same font size as the body */
@@ -165,6 +165,155 @@
         font-weight: bold;
         margin-bottom: 1rem;
         font-size: 1.1em;
+      }
+
+      /* Two-column Layout */
+      .app-container {
+        display: flex;
+        gap: 2rem;
+        position: relative;
+      }
+      
+      .sidebar {
+        width: 25%;
+        min-width: 200px;
+        position: sticky;
+        top: 2rem;
+        height: fit-content;
+        max-height: calc(100vh - 4rem);
+        overflow-y: auto;
+      }
+      
+      .main-content {
+        flex: 1;
+        min-width: 0;
+      }
+      
+      /* Topic Outline Styles */
+      .topic-outline {
+        font-family: monospace;
+        font-size: 0.9em;
+        line-height: 1.8;
+        color: #444;
+        padding: 1rem;
+        border: 1px solid #eee;
+        border-radius: 8px;
+        background-color: #fafafa;
+      }
+      
+      .outline-section {
+        margin-bottom: 1rem;
+      }
+      
+      .outline-header {
+        font-weight: bold;
+        color: #000;
+      }
+      
+      .outline-prev {
+        color: #888;
+      }
+      
+      .outline-current {
+        color: #000;
+      }
+      
+      .outline-label {
+        color: #666;
+        margin-bottom: 0.25rem;
+      }
+      
+      .outline-item {
+        color: #444;
+        cursor: pointer;
+        transition: color 0.2s ease;
+        padding-left: 0.5rem;
+      }
+      
+      .outline-item:hover {
+        color: #0000ff;
+      }
+      
+      .outline-loading {
+        color: #888;
+        font-style: italic;
+      }
+      
+      .outline-stats {
+        color: #888;
+        font-size: 0.85em;
+      }
+      
+      /* History navigation styles */
+      .path-item {
+        margin: 0.25rem 0;
+      }
+      
+      .path-topic, .current-topic {
+        cursor: pointer;
+        transition: color 0.2s ease;
+      }
+      
+      .path-topic:hover {
+        color: #0000ff;
+      }
+      
+      .current-topic {
+        color: #000;
+        font-weight: bold;
+      }
+      
+      .history-node, .history-item {
+        cursor: pointer;
+        transition: color 0.2s ease;
+        margin: 0.25rem 0;
+        color: #666;
+      }
+      
+      .history-node:hover, .history-item:hover {
+        color: #0000ff;
+      }
+      
+      .history-node.current, .history-item.current {
+        color: #000;
+        font-weight: bold;
+      }
+      
+      .history-tree {
+        margin-left: 1rem;
+      }
+      
+      .outline-controls {
+        margin-top: 0.5rem;
+      }
+      
+      .clear-history-btn {
+        background: none;
+        border: 1px solid #ddd;
+        padding: 0.25rem 0.5rem;
+        font-size: 0.8em;
+        cursor: pointer;
+        border-radius: 4px;
+        color: #666;
+        transition: all 0.2s ease;
+      }
+      
+      .clear-history-btn:hover {
+        background: #f0f0f0;
+        color: #000;
+      }
+      
+      /* Responsive Design */
+      @media (max-width: 768px) {
+        .app-container {
+          flex-direction: column;
+        }
+        
+        .sidebar {
+          width: 100%;
+          position: relative;
+          top: 0;
+        }
       }
 
     </style>

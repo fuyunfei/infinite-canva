@@ -1,0 +1,61 @@
+/* Global styles for Infinite Wiki */
+
+/* Hide all scrollbars */
+.sidebar {
+  overflow: hidden;
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* Internet Explorer 10+ */
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+.sidebar::-webkit-scrollbar {
+  display: none; /* WebKit */
+}
+
+.content-area {
+  overflow-y: auto;
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* Internet Explorer 10+ */
+}
+
+.content-area::-webkit-scrollbar {
+  display: none; /* WebKit */
+}
+
+/* Remove all borders and outlines */
+.topic-outline {
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+.outline-item:focus {
+  outline: none !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+/* Smooth transitions for interactive elements */
+.outline-item, .history-node {
+  transition: all 0.15s ease;
+  border: none !important;
+}
+
+/* Clean body styles */
+body {
+  margin: 0;
+  padding: 0;
+  overflow-x: hidden;
+}
+
+/* Remove any default styling that might add borders */
+* {
+  box-sizing: border-box;
+}
+
+aside, div {
+  border: none !important;
+  outline: none !important;
+}
