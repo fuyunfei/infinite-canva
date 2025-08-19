@@ -38,27 +38,24 @@ const TopicOutline: React.FC<TopicOutlineProps> = ({
           onClick={() => onNavigateToNode(nodeId)}
           style={{
             cursor: 'pointer',
-            fontSize: '14px',
-            lineHeight: '1.6',
-            padding: '2px 0',
+            fontSize: '16px',
+            lineHeight: '1.5',
+            padding: '4px 0',
             paddingLeft: `${indentWidth}px`,
-            backgroundColor: isCurrent ? '#f0f7ff' : 'transparent',
-            color: isCurrent ? '#2563eb' : '#374151',
-            fontWeight: isCurrent ? 500 : 400,
+            backgroundColor: 'transparent',
+            color: isCurrent ? '#000' : '#666',
+            fontWeight: isCurrent ? 600 : 400,
+            fontFamily: 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif',
             transition: 'all 0.15s ease'
           }}
           onMouseEnter={(e) => {
             if (!isCurrent) {
-              e.currentTarget.style.backgroundColor = '#f9fafb';
-              e.currentTarget.style.color = '#1f2937';
-              e.currentTarget.style.transform = 'translateX(2px)';
+              e.currentTarget.style.color = '#000';
             }
           }}
           onMouseLeave={(e) => {
             if (!isCurrent) {
-              e.currentTarget.style.backgroundColor = 'transparent';
-              e.currentTarget.style.color = '#374151';
-              e.currentTarget.style.transform = 'translateX(0)';
+              e.currentTarget.style.color = '#666';
             }
           }}
         >
@@ -97,7 +94,7 @@ const TopicOutline: React.FC<TopicOutlineProps> = ({
   return (
     <div className="topic-outline" style={{
       padding: '16px 8px',
-      height: '100%',
+      width: '100%',
       overflow: 'visible',
       backgroundColor: 'transparent',
       border: 'none',
@@ -113,14 +110,13 @@ const TopicOutline: React.FC<TopicOutlineProps> = ({
         padding: '0 8px'
       }}>
         <h3 style={{
-          margin: '0',
-          fontSize: '13px',
-          fontWeight: 600,
+          margin: '0 0 16px 0',
+          fontSize: '14px',
+          fontWeight: 500,
           color: '#666',
-          textTransform: 'uppercase',
-          letterSpacing: '0.5px'
+          fontFamily: 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif'
         }}>
-          探索历史
+          History
         </h3>
         
         {Object.keys(historyNodes).length > 0 && (
@@ -132,10 +128,11 @@ const TopicOutline: React.FC<TopicOutlineProps> = ({
               cursor: 'pointer',
               fontSize: '12px',
               color: '#999',
-              padding: '0'
+              padding: '0',
+              fontFamily: 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif'
             }}
           >
-            清除
+            Clear
           </button>
         )}
       </div>

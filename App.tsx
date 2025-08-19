@@ -313,7 +313,9 @@ const App: React.FC = () => {
           overflow: 'hidden',
           backgroundColor: 'transparent',
           border: 'none',
-          height: '100%'
+          height: '100%',
+          display: 'flex',
+          alignItems: 'center'
         }}>
           <TopicOutline
             historyNodes={topicHistoryState.nodes}
