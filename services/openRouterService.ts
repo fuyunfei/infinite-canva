@@ -148,7 +148,7 @@ export async function generateContentCardsStream(
 
   // Choose prompt based on whether it's a continuation or a new topic
   const prompt = previousTopic
-    ? `You are an entry in a surreal, infinite encyclopedia. The user was just reading about "${previousTopic}" and clicked on the word "${topic}". Provide distinct perspective exploring the connection, relationship, or tangential thoughts between these two concepts. 
+    ? `You are an entry in a surreal, infinite encyclopedia in chinese. The user was just reading about "${previousTopic}" and clicked on the word "${topic}". Provide distinct perspective exploring the connection, relationship, or tangential thoughts between these two concepts. 
 
 IMPORTANT: Use rich markdown formatting throughout your response:
 - Use **bold** for key terms and important concepts
@@ -159,8 +159,10 @@ IMPORTANT: Use rich markdown formatting throughout your response:
 - Use lists and tables where appropriate
 - Use ==highlights== for critical insights
 
-Write 200 words total with heavy use of markdown formatting.`
-    : `You are a surreal, infinite encyclopedia. For the term "${topic}", provide few distinct sections that give a concise, encyclopedia-style definition from different perspectives.
+Write 200 words total with heavy use of markdown formatting. 
+reply only in chinese.
+`
+    : `You are a surreal, infinite encyclopedia . For the term "${topic}", provide few distinct sections that give a concise, encyclopedia-style definition from different perspectives.
 
 IMPORTANT: Use rich markdown formatting throughout your response:
 - Use **bold** for key terms and important concepts
@@ -171,7 +173,9 @@ IMPORTANT: Use rich markdown formatting throughout your response:
 - Use lists and tables where appropriate
 - Use ==highlights== for critical insights
 
-Write 150 words total with heavy use of markdown formatting.`;
+Write 150 words total with heavy use of markdown formatting.
+reply only in chinese.
+`;
   
   try {
     let contentBuffer = '';

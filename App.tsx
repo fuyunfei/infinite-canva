@@ -10,6 +10,7 @@ import SearchBar from './components/SearchBar';
 import LoadingSkeleton from './components/LoadingSkeleton';
 import AsciiArtDisplay from './components/AsciiArtDisplay';
 import TopicOutline from './components/TopicOutline';
+import OnePageView from './components/OnePageView';
 import { useTopicHistory } from './hooks/useTopicHistory';
 
 // A curated list of "banger" words and phrases for the random button.
@@ -66,6 +67,7 @@ const App: React.FC = () => {
   const [totalInputWords, setTotalInputWords] = useState<number>(0);
   const [totalOutputWords, setTotalOutputWords] = useState<number>(0);
   const [currentContentWords, setCurrentContentWords] = useState<number>(0);
+  const [viewMode, setViewMode] = useState<'normal' | 'onepage'>('normal');
   
 
 
@@ -302,7 +304,13 @@ const App: React.FC = () => {
 
   return (
     <div>
-      <SearchBar onSearch={handleSearch} onRandom={handleRandom} isLoading={isLoading} />
+      <SearchBar 
+        onSearch={handleSearch} 
+        onRandom={handleRandom} 
+        isLoading={isLoading}
+        viewMode={viewMode}
+        onViewModeChange={setViewMode}
+      />
       
 
       
@@ -327,51 +335,62 @@ const App: React.FC = () => {
         </aside>
         
         <div className="main-content" style={{ flex: 1, display: 'flex', flexDirection: 'column', overflowY: 'auto' }}>
-          <div className="content-header" style={{ marginBottom: '1rem' }}>
-            
-            <div className="ascii-art-section" style={{ 
-              display: 'flex', 
-              justifyContent: 'center',
-              marginBottom: '1rem',
-              padding: '1rem',
-              background: '#fafafa',
-              borderRadius: '8px',
-              border: '1px solid #e0e0e0'
-            }}>
-              <AsciiArtDisplay artData={asciiArt} topic={currentTopic} />
-            </div>
-          </div>
+          {viewMode === 'normal' ? (
+            // Normal single-node view
+            <>
+              <div className="content-header" style={{ marginBottom: '1rem' }}>
+                <div className="ascii-art-section" style={{ 
+                  display: 'flex', 
+                  justifyContent: 'center',
+                  marginBottom: '1rem',
+                  padding: '1rem',
+                  background: '#fafafa',
+                  borderRadius: '8px',
+                  border: '1px solid #e0e0e0'
+                }}>
+                  <AsciiArtDisplay artData={asciiArt} topic={currentTopic} />
+                </div>
+              </div>
 
-          {error && (
-            <div style={{ border: '1px solid #cc0000', padding: '1rem', color: '#cc0000', marginBottom: '1rem' }}>
-              <p style={{ margin: 0 }}>An Error Occurred</p>
-              <p style={{ marginTop: '0.5rem', margin: 0 }}>{error}</p>
-            </div>
-          )}
-          
-          {!error && (
-            <div className="card-container" style={{ 
-              display: 'grid', 
-              gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
-              gap: '1rem',
-              alignItems: 'start'
-            }}>
-              {cards.filter(card => card.title || card.content).map((card, index) => (
-                <Card 
-                  key={index}
-                  title={card.title}
-                  content={card.content}
-                  onWordClick={handleWordClick}
-                />
-              ))}
-            </div>
+              {error && (
+                <div style={{ border: '1px solid #cc0000', padding: '1rem', color: '#cc0000', marginBottom: '1rem' }}>
+                  <p style={{ margin: 0 }}>An Error Occurred</p>
+                  <p style={{ marginTop: '0.5rem', margin: 0 }}>{error}</p>
+                </div>
+              )}
+              
+              {!error && (
+                <div className="card-container" style={{ 
+                  display: 'grid', 
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
+                  gap: '1rem',
+                  alignItems: 'start'
+                }}>
+                  {cards.filter(card => card.title || card.content).map((card, index) => (
+                    <Card 
+                      key={index}
+                      title={card.title}
+                      content={card.content}
+                      onWordClick={handleWordClick}
+                    />
+                  ))}
+                </div>
+              )}
+            </>
+          ) : (
+            // One-page view showing all nodes
+            <OnePageView 
+              nodes={topicHistoryState.nodes} 
+              onWordClick={handleWordClick}
+              onSwitchToNormalMode={() => setViewMode('normal')}
+            />
           )}
         </div>
       </main>
 
       <footer className="sticky-footer">
         <p className="footer-text" style={{ margin: 0 }}>
-          Infinite Wiki by <a href="https://x.com/dev_valladares" target="_blank" rel="noopener noreferrer">Dev Valladares</a> · Generated via OpenRouter (Gemini 2.5 Flash Lite)
+           Generated via OpenRouter (Gemini 2.5 Flash Lite)
           {generationTime && ` · ${Math.round(generationTime)}ms`}
           {totalInputWords > 0 && ` · Est. cost: $${((totalInputWords / 1000000 * 0.1) + (totalOutputWords / 1000000 * 0.4)).toFixed(6)}`}
         </p>

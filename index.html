@@ -138,6 +138,25 @@
         cursor: not-allowed;
       }
 
+      /* One Page View Styles */
+      .one-page-view {
+        animation: fadeIn 0.3s ease-in;
+      }
+
+      .node-section {
+        scroll-margin-top: 2rem;
+      }
+
+      @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(20px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
+
+      /* Smooth scrolling for one-page mode */
+      .main-content {
+        scroll-behavior: smooth;
+      }
+
       .sticky-footer {
         position: fixed;
         bottom: 0;
