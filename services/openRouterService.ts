@@ -303,3 +303,45 @@ Return ONLY the raw JSON object, no additional text. The response must start wit
   // This should never be reached, but just in case
   throw lastError || new Error('All retry attempts failed');
 }
+
+/**
+ * Generates modified content based on a custom prompt
+ */
+export async function generateModifiedContentStream(
+  customPrompt: string,
+  onChunk: (chunk: CardStreamChunk) => void
+): Promise<void> {
+  if (!process.env.OPENROUTER_API_KEY) {
+    throw new Error('OPENROUTER_API_KEY is not configured. Please check your environment variables to continue.');
+  }
+
+  try {
+    let isFirstChunk = true;
+
+    for await (const chunk of makeOpenRouterStreamRequest(customPrompt, textModelName)) {
+      // Initialize card on first content
+      if (isFirstChunk) {
+        onChunk({ type: 'title', value: '' });
+        isFirstChunk = false;
+      }
+      
+      // Filter out markdown code block markers in real-time
+      let cleanChunk = chunk;
+      
+      // Remove code block fences
+      cleanChunk = cleanChunk.replace(/```[\w]*\s*/g, '');
+      cleanChunk = cleanChunk.replace(/```\s*/g, '');
+      
+      // Only send the chunk if it has content after cleaning
+      if (cleanChunk) {
+        onChunk({ type: 'content', value: cleanChunk });
+      }
+    }
+
+  } catch (error) {
+    console.error('Error generating modified content from OpenRouter:', error);
+    const errorMessage =
+      error instanceof Error ? error.message : 'An unknown error occurred.';
+    throw new Error(`Could not generate modified content. ${errorMessage}`);
+  }
+}

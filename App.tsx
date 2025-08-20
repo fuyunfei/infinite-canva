@@ -4,7 +4,7 @@
 */
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { generateContentCardsStream, generateAsciiArt, AsciiArtData, CardData, CardStreamChunk } from './services/openRouterService';
+import { generateContentCardsStream, generateModifiedContentStream, generateAsciiArt, AsciiArtData, CardData, CardStreamChunk } from './services/openRouterService';
 import Card from './components/Card';
 import SearchBar from './components/SearchBar';
 import LoadingSkeleton from './components/LoadingSkeleton';
@@ -68,6 +68,7 @@ const App: React.FC = () => {
   const [totalOutputWords, setTotalOutputWords] = useState<number>(0);
   const [currentContentWords, setCurrentContentWords] = useState<number>(0);
   const [viewMode, setViewMode] = useState<'normal' | 'onepage'>('normal');
+  const [isAIModifying, setIsAIModifying] = useState<boolean>(false);
   
 
 
@@ -301,6 +302,117 @@ const App: React.FC = () => {
     }
   };
 
+  const handleAIModify = async (prompt: string) => {
+    const currentNode = getCurrentNode();
+    if (!currentNode || isAIModifying || !currentNode.cachedCards) return;
+
+    setIsAIModifying(true);
+    setError(null);
+    
+    try {
+      // Extract current content for context
+      const currentContent = currentNode.cachedCards
+        .filter(card => card.title || card.content)
+        .map(card => {
+          let cardText = '';
+          if (card.title) cardText += `## ${card.title}\n\n`;
+          if (card.content) cardText += `${card.content}\n\n`;
+          return cardText;
+        })
+        .join('');
+
+      const modifyPrompt = `You are an expert content editor. The user wants to modify existing content about "${currentTopic}".
+
+CURRENT CONTENT:
+"""
+${currentContent}
+"""
+
+USER'S MODIFICATION REQUEST: "${prompt}"
+
+TASK: Please modify the existing content according to the user's request. Follow these guidelines:
+
+1. **PRESERVE STRUCTURE**: Keep the same general structure and organization unless the user specifically asks to change it
+2. **INCREMENTAL CHANGES**: Make targeted modifications rather than complete rewrites
+3. **MAINTAIN STYLE**: Keep the same writing style and tone
+4. **ENHANCE, DON'T REPLACE**: Build upon existing content rather than starting from scratch
+5. **KEEP MARKDOWN**: Maintain rich markdown formatting:
+   - Use **bold** for key terms and important concepts
+   - Use *italic* for emphasis and nuanced descriptions
+   - Use \`inline code\` for technical terms
+   - Use [links](url) for cross-references (use # as url)
+   - Use > blockquotes for quotes or definitions
+   - Use ==highlights== for critical insights
+   - Use lists and tables where appropriate
+
+6. **SPECIFIC MODIFICATIONS**: Based on the user's request:
+   - If they ask to "add examples" → add concrete examples while keeping existing content
+   - If they ask to "make it simpler" → simplify language but keep all key points
+   - If they ask to "make it more technical" → add technical details and terminology
+   - If they ask to "expand" → add more depth and detail
+   - If they ask to "focus on X" → emphasize X aspects while keeping context
+
+OUTPUT: Provide the modified content maintaining the same approximate length and structure as the original.
+
+IMPORTANT: Do NOT wrap your response in markdown code blocks. Provide the content directly without any code fence markers.`;
+
+      // Clear current cards to show modification in progress
+      setCards([]);
+      
+      let isFirstChunk = true;
+      const handleChunk = (chunk: CardStreamChunk) => {
+        if (isFirstChunk) {
+          setCards([{ title: '', content: '' }]);
+          isFirstChunk = false;
+        }
+
+        setCards(prev => {
+          let newCards = [...prev];
+          const currentCardIndex = newCards.length - 1;
+          const currentCard = newCards[currentCardIndex];
+
+          switch(chunk.type) {
+            case 'title':
+              newCards[currentCardIndex] = { ...currentCard, title: chunk.value };
+              break;
+            case 'content':
+              newCards[currentCardIndex] = { ...currentCard, content: currentCard.content + chunk.value };
+              break;
+            case 'separator':
+              newCards.push({ title: '', content: '' });
+              break;
+          }
+          return newCards;
+        });
+      };
+
+      await generateModifiedContentStream(modifyPrompt, handleChunk);
+      
+      // Update the node cache with modified content after a short delay
+      setTimeout(() => {
+        const currentNode = getCurrentNode();
+        if (currentNode && cards.length > 0) {
+          updateNodeContent(currentNode.id, {
+            cards: cards,
+            asciiArt: currentNode.cachedAsciiArt, // Keep existing ASCII art
+            generationTime: currentNode.generationTime // Keep existing generation time
+          });
+        }
+      }, 500);
+      
+    } catch (error) {
+      console.error('AI modify error:', error);
+      setError('Failed to modify content. Please try again.');
+      // Restore original content on error
+      const currentNode = getCurrentNode();
+      if (currentNode && currentNode.cachedCards) {
+        setCards(currentNode.cachedCards);
+      }
+    } finally {
+      setIsAIModifying(false);
+    }
+  };
+
 
   return (
     <div>
@@ -388,13 +500,59 @@ const App: React.FC = () => {
         </div>
       </main>
 
-      <footer className="sticky-footer">
-        <p className="footer-text" style={{ margin: 0 }}>
-           Generated via OpenRouter (Gemini 2.5 Flash Lite)
-          {generationTime && ` · ${Math.round(generationTime)}ms`}
-          {totalInputWords > 0 && ` · Est. cost: $${((totalInputWords / 1000000 * 0.1) + (totalOutputWords / 1000000 * 0.4)).toFixed(6)}`}
-        </p>
-      </footer>
+             <footer className="sticky-footer">
+         <div style={{ 
+           display: 'flex', 
+           alignItems: 'center', 
+           justifyContent: 'center',
+           width: '100%',
+           position: 'relative'
+         }}>
+           {viewMode === 'normal' && getCurrentNode() && (
+             <input
+               type="text"
+               placeholder={isAIModifying ? "AI is modifying..." : "Ask AI to modify content..."}
+               disabled={isAIModifying}
+               style={{
+                 background: 'none',
+                 border: 'none',
+                 padding: '0.25rem 0.5rem',
+                 font: 'inherit',
+                 fontSize: '0.8em',
+                 color: isAIModifying ? '#999' : 'inherit',
+                 width: '250px',
+                 textAlign: 'center',
+                 borderBottom: '1px solid transparent',
+                 transition: 'all 0.2s',
+                 cursor: isAIModifying ? 'not-allowed' : 'text'
+               }}
+               onFocus={(e) => !isAIModifying && (e.target.style.borderBottomColor = '#666')}
+               onBlur={(e) => e.target.style.borderBottomColor = 'transparent'}
+               onKeyDown={(e) => {
+                 if (e.key === 'Enter' && !isAIModifying) {
+                   const input = e.target as HTMLInputElement;
+                   if (input.value.trim()) {
+                     handleAIModify(input.value.trim());
+                     input.value = '';
+                     input.blur();
+                   }
+                 }
+               }}
+             />
+           )}
+           
+           <p className="footer-text" style={{ 
+             margin: 0, 
+             position: 'absolute',
+             right: '1rem',
+             fontSize: '0.75em'
+           }}>
+              Generated via OpenRouter (Gemini 2.5 Flash Lite)
+             {generationTime && ` · ${Math.round(generationTime)}ms`}
+             {totalInputWords > 0 && ` · Est. cost: $${((totalInputWords / 1000000 * 0.1) + (totalOutputWords / 1000000 * 0.4)).toFixed(6)}`}
+           </p>
+         </div>
+       </footer>
     </div>
   );
 };
