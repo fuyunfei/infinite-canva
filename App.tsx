@@ -67,6 +67,8 @@ const App: React.FC = () => {
   const [totalOutputWords, setTotalOutputWords] = useState<number>(0);
   const [currentContentWords, setCurrentContentWords] = useState<number>(0);
   
+
+
   // Initialize first topic if no history exists
   useEffect(() => {
     if (Object.keys(topicHistoryState.nodes).length === 0) {
@@ -118,27 +120,27 @@ const App: React.FC = () => {
     let sessionOutputWords = 0;
     setCurrentContentWords(0); // Reset current content word count
 
-    // --- ASCII Art Generation (Concurrent) ---
-    generateAsciiArt(currentTopic)
-      .then(art => {
-        if (!isCancelled) {
-          setAsciiArt(art);
-          // Estimate ASCII art generation words (prompt + response)
-          const artPromptWords = 50; // Approximate words in ASCII art prompt
-          const artOutputWords = art.art.split(/\s+/).length;
-          sessionInputWords += artPromptWords;
-          sessionOutputWords += artOutputWords;
-          setTotalInputWords(prev => prev + artPromptWords);
-          setTotalOutputWords(prev => prev + artOutputWords);
-        }
-      })
-      .catch(err => {
-        if (!isCancelled) {
-          console.error("Failed to generate ASCII art:", err);
-          const fallbackArt = createFallbackArt(currentTopic);
-          setAsciiArt(fallbackArt);
-        }
-      });
+    // --- ASCII Art Generation (Concurrent) --- COMMENTED OUT FOR DEBUGGING
+    // generateAsciiArt(currentTopic)
+    //   .then(art => {
+    //     if (!isCancelled) {
+    //       setAsciiArt(art);
+    //       // Estimate ASCII art generation words (prompt + response)
+    //       const artPromptWords = 50; // Approximate words in ASCII art prompt
+    //       const artOutputWords = art.art.split(/\s+/).length;
+    //       sessionInputWords += artPromptWords;
+    //       sessionOutputWords += artOutputWords;
+    //       setTotalInputWords(prev => prev + artPromptWords);
+    //       setTotalOutputWords(prev => prev + artOutputWords);
+    //     }
+    //   })
+    //   .catch(err => {
+    //     if (!isCancelled) {
+    //       console.error("Failed to generate ASCII art:", err);
+    //       const fallbackArt = createFallbackArt(currentTopic);
+    //       setAsciiArt(fallbackArt);
+    //     }
+    //   });
     
     // --- Content Streaming ---
     const streamContent = async () => {
@@ -152,7 +154,8 @@ const App: React.FC = () => {
         
         const handleChunk = (chunk: CardStreamChunk) => {
           if (isCancelled) return;
-          if (isLoading) setIsLoading(false); // Turn off skeleton on first chunk
+          
+          console.log('DEBUG: Received chunk:', chunk); // DEBUG
 
           // Track output words
           if (chunk.type === 'title' || chunk.type === 'content') {
@@ -169,20 +172,24 @@ const App: React.FC = () => {
             if (newCards.length === 0) {
               newCards.push({ title: '', content: '' });
             }
-            let currentCard = newCards[newCards.length - 1];
+            
+            // Create a new card object instead of mutating the existing one
+            const currentCardIndex = newCards.length - 1;
+            const currentCard = newCards[currentCardIndex];
 
             switch(chunk.type) {
               case 'title':
-                currentCard.title = chunk.value;
+                newCards[currentCardIndex] = { ...currentCard, title: chunk.value };
                 break;
               case 'content':
-                currentCard.content += chunk.value;
+                newCards[currentCardIndex] = { ...currentCard, content: currentCard.content + chunk.value };
                 break;
               case 'separator':
                 // The next chunk will be a title for a new card
                 newCards.push({ title: '', content: '' });
                 break;
             }
+            console.log('DEBUG: Updated cards:', newCards); // DEBUG
             return newCards;
           });
         };
@@ -325,7 +332,8 @@ const App: React.FC = () => {
         <div className="main-content" style={{ flex: 1, display: 'flex', flexDirection: 'column', overflowY: 'auto' }}>
           <div className="content-header" style={{ marginBottom: '1rem' }}>
             
-            <div className="ascii-art-section" style={{ 
+            {/* ASCII ART SECTION COMMENTED OUT FOR DEBUGGING */}
+            {/* <div className="ascii-art-section" style={{ 
               display: 'flex', 
               justifyContent: 'center',
               marginBottom: '1rem',
@@ -335,7 +343,7 @@ const App: React.FC = () => {
               border: '1px solid #e0e0e0'
             }}>
               <AsciiArtDisplay artData={asciiArt} topic={currentTopic} />
-            </div>
+            </div> */}
           </div>
 
           {error && (
@@ -345,17 +353,14 @@ const App: React.FC = () => {
             </div>
           )}
           
-          {isLoading && !error && (
-            <LoadingSkeleton />
-          )}
-
-          {!isLoading && !error && (
+          {!error && (
             <div className="card-container" style={{ 
               display: 'grid', 
               gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
               gap: '1rem',
               alignItems: 'start'
             }}>
+              {console.log('DEBUG: Rendering cards:', cards)} {/* DEBUG */}
               {cards.filter(card => card.title || card.content).map((card, index) => (
                 <Card 
                   key={index}

@@ -152,46 +152,24 @@ export async function generateContentCardsStream(
     : `You are a surreal, infinite encyclopedia. For the term "${topic}", provide few distinct sections that give a concise, encyclopedia-style definition from different perspectives.  provide the content in markdown , provide the content in markdown, you can use all markdown types, list table inlines etc. Separate each section with a divided line .  150 words in total `;
   
   try {
-    let buffer = '';
-    let state: 'seeking_title' | 'seeking_content' = 'seeking_title';
+    let contentBuffer = '';
+    let isFirstChunk = true;
 
     for await (const chunk of makeOpenRouterStreamRequest(prompt, textModelName)) {
-      buffer += chunk;
-
-      // This loop ensures we process all complete parts within the current buffer
-      while (true) {
-        if (state === 'seeking_title') {
-          const titleRegex = /^TITLE: (.*?)\n/;
-          const match = buffer.match(titleRegex);
-          if (match) {
-            onChunk({ type: 'title', value: match[1].trim() });
-            buffer = buffer.substring(match[0].length);
-            state = 'seeking_content';
-          } else {
-            break; // Not enough data for a title, wait for more chunks
-          }
-        }
-
-        if (state === 'seeking_content') {
-          const separator = '\n---\n';
-          const separatorIndex = buffer.indexOf(separator);
-          if (separatorIndex !== -1) {
-            const content = buffer.substring(0, separatorIndex);
-            if (content) onChunk({ type: 'content', value: content });
-            onChunk({ type: 'separator' });
-            buffer = buffer.substring(separatorIndex + separator.length);
-            state = 'seeking_title';
-          } else {
-            break; // No separator found, wait for more chunks
-          }
-        }
+      console.log('DEBUG SERVICE: Raw chunk received:', chunk); // DEBUG
+      
+      // Initialize card on first content
+      if (isFirstChunk) {
+        onChunk({ type: 'title', value: '' });
+        isFirstChunk = false;
       }
+      
+      // Send the raw chunk directly for true streaming
+      // This preserves the natural streaming from the API
+      onChunk({ type: 'content', value: chunk });
     }
 
-    // After the stream finishes, any remaining data in the buffer is the final content
-    if (buffer) {
-      onChunk({ type: 'content', value: buffer });
-    }
+    console.log('DEBUG SERVICE: Streaming completed'); // DEBUG
   } catch (error) {
     console.error('Error generating streaming content from OpenRouter:', error);
     const errorMessage =
