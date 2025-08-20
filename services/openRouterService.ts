@@ -148,7 +148,7 @@ export async function generateContentCardsStream(
 
   // Choose prompt based on whether it's a continuation or a new topic
   const prompt = previousTopic
-    ? `You are an entry in a surreal, infinite encyclopedia in chinese. The user was just reading about "${previousTopic}" and clicked on the word "${topic}". Provide distinct perspective exploring the connection, relationship, or tangential thoughts between these two concepts. 
+    ? `You are an entry in a surreal, infinite wikipedia in chinese. The user was just reading about "${previousTopic}" and clicked on the word "${topic}". Provide distinct perspective exploring the connection, relationship, or tangential thoughts between these two concepts. 
 
 IMPORTANT: Use rich markdown formatting throughout your response:
 - Use **bold** for key terms and important concepts
@@ -162,7 +162,7 @@ IMPORTANT: Use rich markdown formatting throughout your response:
 Write 200 words total with heavy use of markdown formatting. 
 reply only in chinese.
 `
-    : `You are a surreal, infinite encyclopedia . For the term "${topic}", provide few distinct sections that give a concise, encyclopedia-style definition from different perspectives.
+    : `You are a surreal, infinite wikipedia . For the term "${topic}", provide few distinct sections that give a concise, wikipedia-style definition from different perspectives.
 
 IMPORTANT: Use rich markdown formatting throughout your response:
 - Use **bold** for key terms and important concepts
@@ -236,10 +236,10 @@ export async function generateAsciiArt(topic: string): Promise<AsciiArtData> {
     throw new Error('OPENROUTER_API_KEY is not configured.');
   }
   
-  const artPromptPart = `1. "ASCII art": meta ASCII horizontal diagram visualization of the word "${topic}"`;
+  const artPromptPart = `1. "art": meta ASCII horizontal diagram visualization of the word "${topic}"`;
 
 
-  const keysDescription = `one key: "ASCII art"`;
+  const keysDescription = `one key: "art"`;
   const promptBody = artPromptPart;
 
   const prompt = `For "${topic}", create a JSON object with ${keysDescription}.

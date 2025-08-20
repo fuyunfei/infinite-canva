@@ -547,9 +547,9 @@ IMPORTANT: Do NOT wrap your response in markdown code blocks. Provide the conten
              right: '1rem',
              fontSize: '0.75em'
            }}>
-              Generated via OpenRouter (Gemini 2.5 Flash Lite)
+              Gemini 2.5 Flash Lite
              {generationTime && ` · ${Math.round(generationTime)}ms`}
-             {totalInputWords > 0 && ` · Est. cost: $${((totalInputWords / 1000000 * 0.1) + (totalOutputWords / 1000000 * 0.4)).toFixed(6)}`}
+             {totalInputWords > 0 && ` · Cost: $${((totalInputWords / 1000000 * 0.1) + (totalOutputWords / 1000000 * 0.4)).toFixed(6)}`}
            </p>
          </div>
        </footer>

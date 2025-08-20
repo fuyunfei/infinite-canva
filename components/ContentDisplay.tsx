@@ -23,7 +23,8 @@ interface ContentDisplayProps {
  */
 const renderInteractiveText = (text: string, onWordClick: (word: string) => void): (JSX.Element | string)[] => {
   // Enhanced regex that handles multiple markdown formats
-  const parts = text.split(/(\*\*.*?\*\*|__.*?__|~~.*?~~|==.*?==|`.*?`|\[.*?\]\(.*?\)|\*.*?\*|_.*?_)/g).filter(Boolean);
+  // Order matters: longer patterns first to avoid conflicts
+  const parts = text.split(/(\*\*[^*]+?\*\*|__[^_]+?__|~~[^~]+?~~|==.+?==|`[^`]+?`|\[[^\]]+?\]\([^)]+?\)|\*[^*]+?\*|_[^_]+?_)/g).filter(Boolean);
 
   return parts.flatMap((part, i) => {
     // Bold text - CLICKABLE AS ENTIRE UNIT
@@ -327,8 +328,15 @@ const InteractiveContent: React.FC<{
       flushList();
       flushBlockquote();
       const cells = trimmedLine.split('|').map(cell => cell.trim()).filter(cell => cell.length > 0);
-      // Skip separator rows like |---|---|
-      if (!cells.every(cell => cell.match(/^-+$/))) {
+      // Skip separator rows like |---|---| or |:---:|:---:| or |:-----|-----:| or |:-------------:|
+      const isSeparatorRow = cells.every(cell => 
+        cell.match(/^:?-+:?$/) || // Standard separators
+        cell.match(/^:-+$/) ||    // Left aligned
+        cell.match(/^-+:$/) ||    // Right aligned
+        cell.match(/^:-+:$/)      // Center aligned
+      );
+      
+      if (!isSeparatorRow) {
         currentTable.push(cells);
       }
       return;
