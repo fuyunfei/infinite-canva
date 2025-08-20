@@ -148,15 +148,37 @@ export async function generateContentCardsStream(
 
   // Choose prompt based on whether it's a continuation or a new topic
   const prompt = previousTopic
-    ? `You are an entry in a surreal, infinite encyclopedia. The user was just reading about "${previousTopic}" and clicked on the word "${topic}". Provide distinct prespective exploring the connection, relationship, or tangential thoughts between these two concepts. provide the content in markdown, you can use all markdown types, list / table / inlines etc. Separate each section with a line containing only divided line. 200 words in total  `
-    : `You are a surreal, infinite encyclopedia. For the term "${topic}", provide few distinct sections that give a concise, encyclopedia-style definition from different perspectives.  provide the content in markdown , provide the content in markdown, you can use all markdown types, list table inlines etc. Separate each section with a divided line .  150 words in total `;
+    ? `You are an entry in a surreal, infinite encyclopedia. The user was just reading about "${previousTopic}" and clicked on the word "${topic}". Provide distinct perspective exploring the connection, relationship, or tangential thoughts between these two concepts. 
+
+IMPORTANT: Use rich markdown formatting throughout your response:
+- Use **bold** for key terms and important concepts
+- Use *italic* for emphasis and nuanced descriptions  
+- Use \`inline code\` for technical terms or specific references
+- Use [links](url) for cross-references (use # as url)
+- Use > blockquotes for notable quotes or definitions
+- Use lists and tables where appropriate
+- Use ==highlights== for critical insights
+
+Write 200 words total with heavy use of markdown formatting.`
+    : `You are a surreal, infinite encyclopedia. For the term "${topic}", provide few distinct sections that give a concise, encyclopedia-style definition from different perspectives.
+
+IMPORTANT: Use rich markdown formatting throughout your response:
+- Use **bold** for key terms and important concepts
+- Use *italic* for emphasis and nuanced descriptions
+- Use \`inline code\` for technical terms or specific references  
+- Use [links](url) for cross-references (use # as url)
+- Use > blockquotes for notable quotes or definitions
+- Use lists and tables where appropriate
+- Use ==highlights== for critical insights
+
+Write 150 words total with heavy use of markdown formatting.`;
   
   try {
     let contentBuffer = '';
     let isFirstChunk = true;
 
     for await (const chunk of makeOpenRouterStreamRequest(prompt, textModelName)) {
-      console.log('DEBUG SERVICE: Raw chunk received:', chunk); // DEBUG
+
       
       // Initialize card on first content
       if (isFirstChunk) {
@@ -169,7 +191,7 @@ export async function generateContentCardsStream(
       onChunk({ type: 'content', value: chunk });
     }
 
-    console.log('DEBUG SERVICE: Streaming completed'); // DEBUG
+
   } catch (error) {
     console.error('Error generating streaming content from OpenRouter:', error);
     const errorMessage =

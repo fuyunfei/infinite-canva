@@ -2,7 +2,7 @@
  * @license
  * SPDX-License-Identifier: Apache-2.0
 */
-import React from 'react';
+import React, { JSX } from 'react';
 
 interface ContentDisplayProps {
   content: string;
@@ -26,60 +26,120 @@ const renderInteractiveText = (text: string, onWordClick: (word: string) => void
   const parts = text.split(/(\*\*.*?\*\*|__.*?__|~~.*?~~|==.*?==|`.*?`|\[.*?\]\(.*?\)|\*.*?\*|_.*?_)/g).filter(Boolean);
 
   return parts.flatMap((part, i) => {
-    // Bold text
+    // Bold text - CLICKABLE AS ENTIRE UNIT
     if ((part.startsWith('**') && part.endsWith('**')) || (part.startsWith('__') && part.endsWith('__'))) {
       const content = part.slice(2, -2);
-      return <strong key={i}>{renderInteractiveText(content, onWordClick)}</strong>;
+      return (
+        <strong 
+          key={i} 
+          onClick={() => onWordClick(content)}
+          style={{ 
+            cursor: 'pointer',
+            padding: '1px 2px',
+            borderRadius: '2px',
+            transition: 'background-color 0.2s'
+          }}
+          onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#f0f0f0'}
+          onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+        >
+          {content}
+        </strong>
+      );
     }
     
-    // Strikethrough text
+    // Strikethrough text - CLICKABLE AS ENTIRE UNIT
     if (part.startsWith('~~') && part.endsWith('~~')) {
       const content = part.slice(2, -2);
-      return <del key={i} style={{ textDecoration: 'line-through', opacity: 0.7 }}>{renderInteractiveText(content, onWordClick)}</del>;
+      return (
+        <del 
+          key={i} 
+          onClick={() => onWordClick(content)}
+          style={{ 
+            textDecoration: 'line-through', 
+            opacity: 0.7,
+            cursor: 'pointer',
+            padding: '1px 2px',
+            borderRadius: '2px',
+            transition: 'background-color 0.2s'
+          }}
+          onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#f0f0f0'}
+          onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+        >
+          {content}
+        </del>
+      );
     }
     
-    // Highlight text
+    // Highlight text - CLICKABLE AS ENTIRE UNIT
     if (part.startsWith('==') && part.endsWith('==')) {
       const content = part.slice(2, -2);
-      return <mark key={i} style={{ backgroundColor: '#fff3cd', padding: '1px 2px', borderRadius: '2px' }}>{renderInteractiveText(content, onWordClick)}</mark>;
+      return (
+        <mark 
+          key={i} 
+          onClick={() => onWordClick(content)}
+          style={{ 
+            backgroundColor: '#fff3cd', 
+            padding: '1px 2px', 
+            borderRadius: '2px',
+            cursor: 'pointer',
+            transition: 'background-color 0.2s'
+          }}
+          onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#ffe066'}
+          onMouseOut={(e) => e.currentTarget.style.backgroundColor = '#fff3cd'}
+        >
+          {content}
+        </mark>
+      );
     }
     
-    // Inline code
+    // Inline code - CLICKABLE AS ENTIRE UNIT
     if (part.startsWith('`') && part.endsWith('`')) {
       const content = part.slice(1, -1);
       return (
-        <code key={i} style={{ 
-          backgroundColor: '#f1f3f4', 
-          padding: '2px 4px', 
-          borderRadius: '3px', 
-          fontFamily: 'Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
-          fontSize: '0.9em',
-          color: '#d73a49'
-        }}>
+        <code 
+          key={i} 
+          onClick={() => onWordClick(content)}
+          style={{ 
+            backgroundColor: '#f1f3f4', 
+            padding: '2px 4px', 
+            borderRadius: '3px', 
+            fontFamily: 'Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
+            fontSize: '0.9em',
+            color: '#d73a49',
+            cursor: 'pointer',
+            transition: 'background-color 0.2s'
+          }}
+          onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#e8eaed'}
+          onMouseOut={(e) => e.currentTarget.style.backgroundColor = '#f1f3f4'}
+        >
           {content}
         </code>
       );
     }
     
-    // Links
+    // Links - CLICKABLE AS ENTIRE UNIT
     if (part.startsWith('[') && part.includes('](') && part.endsWith(')')) {
       const linkMatch = part.match(/\[(.*?)\]\((.*?)\)/);
       if (linkMatch) {
         const [, linkText, url] = linkMatch;
         return (
           <a key={i} 
-             href={url} 
-             target="_blank" 
-             rel="noopener noreferrer"
+             href="#"
+             onClick={(e) => {
+               e.preventDefault();
+               e.stopPropagation();
+               onWordClick(linkText); // Click the link text as navigation
+             }}
              style={{ 
                color: '#1a73e8', 
                textDecoration: 'underline',
-               cursor: 'pointer'
+               cursor: 'pointer',
+               padding: '1px 2px',
+               borderRadius: '2px',
+               transition: 'background-color 0.2s'
              }}
-             onClick={(e) => {
-               e.stopPropagation();
-               // Don't trigger word click for links
-             }}
+             onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#f0f0f0'}
+             onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
           >
             {linkText}
           </a>
@@ -87,33 +147,29 @@ const renderInteractiveText = (text: string, onWordClick: (word: string) => void
       }
     }
     
-    // Italic text (must come after bold to avoid conflicts)
+    // Italic text - CLICKABLE AS ENTIRE UNIT (must come after bold to avoid conflicts)
     if ((part.startsWith('*') && part.endsWith('*')) || (part.startsWith('_') && part.endsWith('_'))) {
       const content = part.slice(1, -1);
-      return <em key={i}>{renderInteractiveText(content, onWordClick)}</em>;
+      return (
+        <em 
+          key={i}
+          onClick={() => onWordClick(content)}
+          style={{ 
+            cursor: 'pointer',
+            padding: '1px 2px',
+            borderRadius: '2px',
+            transition: 'background-color 0.2s'
+          }}
+          onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#f0f0f0'}
+          onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+        >
+          {content}
+        </em>
+      );
     }
 
-    // For plain text parts, split into words and make them clickable.
-    const words = part.split(/(\s+)/).filter(Boolean);
-    return words.map((word, j) => {
-      if (/\S/.test(word)) { // Check if it's a non-whitespace word.
-        const cleanWord = word.replace(/[.,!?;:()"']/g, '');
-        if (cleanWord) {
-          return (
-            <button
-              key={`${i}-${j}`}
-              onClick={() => onWordClick(cleanWord)}
-              className="interactive-word"
-              aria-label={`Learn more about ${cleanWord}`}
-            >
-              {word}
-            </button>
-          );
-        }
-      }
-      // Render whitespace as-is to maintain spacing.
-      return <span key={`${i}-${j}`}>{word}</span>;
-    });
+    // For plain text parts, return as non-clickable text
+    return part;
   });
 };
 
