@@ -60,6 +60,7 @@ const OnePageView: React.FC<OnePageViewProps> = ({ nodes, onWordClick, onSwitchT
   return (
     <div className="one-page-view" style={{ 
       padding: '1rem',
+      paddingBottom: '80px',
       width: '100%'
     }}>
       <div style={{

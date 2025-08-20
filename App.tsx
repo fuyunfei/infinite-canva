@@ -123,14 +123,26 @@ const App: React.FC = () => {
     let sessionOutputWords = 0;
     setCurrentContentWords(0); // Reset current content word count
 
-    // --- ASCII Art Generation (Concurrent) ---
-    generateAsciiArt(currentTopic)
-      .then(art => {
+    // --- ASCII Art Generation (Streaming) ---
+    let asciiBuffer = '';
+    const handleAsciiChunk = (chunk: string) => {
+      if (!isCancelled) {
+        asciiBuffer += chunk;
+        // Update the streaming content for real-time display
+        setAsciiArt({ art: asciiBuffer });
+      }
+    };
+    
+    generateAsciiArt(currentTopic, handleAsciiChunk)
+      .then(() => {
         if (!isCancelled) {
-          setAsciiArt(art);
-          // Estimate ASCII art generation words (prompt + response)
-          const artPromptWords = 50; // Approximate words in ASCII art prompt
-          const artOutputWords = art.art.split(/\s+/).length;
+          // Final update with complete art
+          const finalArt = { art: asciiBuffer };
+          setAsciiArt(finalArt);
+          
+          // Estimate ASCII art generation words
+          const artPromptWords = 50;
+          const artOutputWords = asciiBuffer.split(/\s+/).length;
           sessionInputWords += artPromptWords;
           sessionOutputWords += artOutputWords;
           setTotalInputWords(prev => prev + artPromptWords);
@@ -446,7 +458,7 @@ IMPORTANT: Do NOT wrap your response in markdown code blocks. Provide the conten
           />
         </aside>
         
-        <div className="main-content" style={{ flex: 1, display: 'flex', flexDirection: 'column', overflowY: 'auto' }}>
+        <div className="main-content" style={{ flex: 1, display: 'flex', flexDirection: 'column', overflowY: 'auto', paddingBottom: '80px' }}>
           {viewMode === 'normal' ? (
             // Normal single-node view
             <>

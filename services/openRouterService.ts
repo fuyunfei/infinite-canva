@@ -227,81 +227,48 @@ export async function getRandomWord(): Promise<string> {
 }
 
 /**
- * Generates ASCII art and optionally text for a given topic.
+ * Generates ASCII art with real streaming
  * @param topic The topic to generate art for.
- * @returns A promise that resolves to an object with art and optional text.
+ * @param onChunk Callback for streaming chunks
  */
-export async function generateAsciiArt(topic: string): Promise<AsciiArtData> {
+export async function generateAsciiArtStream(
+  topic: string, 
+  onChunk: (chunk: string) => void
+): Promise<void> {
   if (!process.env.OPENROUTER_API_KEY) {
     throw new Error('OPENROUTER_API_KEY is not configured.');
   }
   
-  const artPromptPart = `1. "art": meta ASCII horizontal diagram visualization of the word "${topic}"`;
-
-
-  const keysDescription = `one key: "art"`;
-  const promptBody = artPromptPart;
-
-  const prompt = `For "${topic}", create a JSON object with ${keysDescription}.
-${promptBody}
-
-Return ONLY the raw JSON object, no additional text. The response must start with "{" and end with "}" and contain only the ASCII art property.`;
-
-  const maxRetries = 1;
-  let lastError: Error | null = null;
-
-  for (let attempt = 1; attempt <= maxRetries; attempt++) {
-    try {
-      const response = await makeOpenRouterRequest(prompt, artModelName);
-      let jsonStr = response.trim();
-      
-      // Debug logging
-      console.log(`Attempt ${attempt}/${maxRetries} - Raw API response:`, jsonStr);
-      
-      // Remove any markdown code fences if present
-      const fenceRegex = /^```(?:json)?\s*\n?(.*?)\n?\s*```$/s;
-      const match = jsonStr.match(fenceRegex);
-      if (match && match[1]) {
-        jsonStr = match[1].trim();
-      }
-
-      // Ensure the string starts with { and ends with }
-      if (!jsonStr.startsWith('{') || !jsonStr.endsWith('}')) {
-        throw new Error('Response is not a valid JSON object');
-      }
-
-      const parsedData = JSON.parse(jsonStr) as AsciiArtData;
-      
-      // Validate the response structure
-      if (typeof parsedData.art !== 'string' || parsedData.art.trim().length === 0) {
-        throw new Error('Invalid or empty ASCII art in response');
-      }
-      
-      // If we get here, the validation passed
-      const result: AsciiArtData = {
-        art: parsedData.art,
-      };
-
-      if (ENABLE_ASCII_TEXT_GENERATION && parsedData.text) {
-        result.text = parsedData.text;
-      }
-      
-      return result;
-
-    } catch (error) {
-      lastError = error instanceof Error ? error : new Error('Unknown error occurred');
-      console.warn(`Attempt ${attempt}/${maxRetries} failed:`, lastError.message);
-      
-      if (attempt === maxRetries) {
-        console.error('All retry attempts failed for ASCII art generation');
-        throw new Error(`Could not generate ASCII art after ${maxRetries} attempts: ${lastError.message}`);
-      }
-      // Continue to next attempt
+  const prompt = `1. "art": simple and insightful meta ASCII visualization of the topic: "${topic}".   
+  - Palette: │─┌┐└┘├┤┬┴┼►◄▲▼○●◐◑░▒▓█▀▄■□▪▫★☆♦♠♣♥⟨⟩/\\_|
+  - Shape mirrors concept - make the visual form embody the word's essence
+  - Examples: 
+    * "explosion" → radiating lines from center
+    * "hierarchy" → pyramid structure
+    * "flow" → curved directional lines
+  - Return as single string with \n for line breaks`;
+  
+  try {
+    for await (const chunk of makeOpenRouterStreamRequest(prompt, artModelName)) {
+      onChunk(chunk);
     }
+  } catch (error) {
+    console.error('Error generating streaming ASCII art:', error);
+    throw error;
   }
+}
 
-  // This should never be reached, but just in case
-  throw lastError || new Error('All retry attempts failed');
+/**
+ * Generates ASCII art using streaming for better UX
+ * @param topic The topic to generate art for.
+ * @param onChunk Callback for streaming chunks
+ * @returns A promise that resolves when streaming is complete
+ */
+export async function generateAsciiArt(
+  topic: string, 
+  onChunk: (chunk: string) => void
+): Promise<void> {
+  return generateAsciiArtStream(topic, onChunk);
 }
 
 /**
