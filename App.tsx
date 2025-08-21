@@ -295,29 +295,42 @@ const App: React.FC = () => {
   }, [currentTopic, addTopic]);
 
   const handleNavigateToHistoryNode = useCallback((nodeId: string) => {
-    navigateToNode(nodeId);
-    const node = topicHistoryState.nodes[nodeId];
-    if (node) {
-      setCurrentTopic(node.topic);
-      
-      // Load cached content if available
-      if (node.cachedCards && node.cachedAsciiArt) {
-        setCards(node.cachedCards);
-        setAsciiArt(node.cachedAsciiArt);
-        setGenerationTime(node.generationTime || null);
-        setIsLoading(false);
-        setError(null);
+    if (viewMode === 'onepage') {
+      // In one page mode, scroll to the node instead of switching
+      const nodeElement = document.getElementById(`node-${nodeId}`);
+      if (nodeElement) {
+        nodeElement.scrollIntoView({ 
+          behavior: 'smooth', 
+          block: 'start',
+          inline: 'nearest'
+        });
+      }
+    } else {
+      // In normal mode, switch to the node
+      navigateToNode(nodeId);
+      const node = topicHistoryState.nodes[nodeId];
+      if (node) {
+        setCurrentTopic(node.topic);
         
-        // Restore word counts
-        if (node.totalInputWords) {
-          setTotalInputWords(prev => prev + node.totalInputWords!);
-        }
-        if (node.totalOutputWords) {
-          setTotalOutputWords(prev => prev + node.totalOutputWords!);
+        // Load cached content if available
+        if (node.cachedCards && node.cachedAsciiArt) {
+          setCards(node.cachedCards);
+          setAsciiArt(node.cachedAsciiArt);
+          setGenerationTime(node.generationTime || null);
+          setIsLoading(false);
+          setError(null);
+          
+          // Restore word counts
+          if (node.totalInputWords) {
+            setTotalInputWords(prev => prev + node.totalInputWords!);
+          }
+          if (node.totalOutputWords) {
+            setTotalOutputWords(prev => prev + node.totalOutputWords!);
+          }
         }
       }
     }
-  }, [navigateToNode, topicHistoryState.nodes]);
+  }, [navigateToNode, topicHistoryState.nodes, viewMode]);
 
   const handleSectionClick = (index: number) => {
     // Scroll to the corresponding card

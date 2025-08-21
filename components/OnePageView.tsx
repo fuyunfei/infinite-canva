@@ -74,11 +74,13 @@ const OnePageView: React.FC<OnePageViewProps> = ({ nodes, onWordClick, onSwitchT
       {sortedNodes.map((node: TopicNode, index: number) => (
         <div 
           key={node.id} 
+          id={`node-${node.id}`}
           className="node-section"
           style={{
             marginBottom: index < sortedNodes.length - 1 ? '2.5rem' : '1rem',
             borderBottom: index < sortedNodes.length - 1 ? '1px solid #f0f0f0' : 'none',
-            paddingBottom: index < sortedNodes.length - 1 ? '1.5rem' : '0'
+            paddingBottom: index < sortedNodes.length - 1 ? '1.5rem' : '0',
+            scrollMarginTop: '2rem'
           }}
         >
           {/* Topic Header */}
