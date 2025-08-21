@@ -157,6 +157,44 @@
         scroll-behavior: smooth;
       }
 
+      /* Bento Layout Styles */
+      .bento-card {
+        position: relative;
+        box-sizing: border-box;
+      }
+
+      .bento-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+      }
+
+      .bento-flex-container {
+        container-type: inline-size;
+        width: 100%;
+        max-width: 100%;
+        box-sizing: border-box;
+      }
+
+      /* Responsive bento layout */
+      @container (max-width: 600px) {
+        .bento-flex-container {
+          flex-direction: column !important;
+        }
+      }
+
+      /* Card content styling */
+      .card-content {
+        position: relative;
+        z-index: 1;
+      }
+
+      .bento-card .card-content h1,
+      .bento-card .card-content h2,
+      .bento-card .card-content h3,
+      .bento-card .card-content h4 {
+        margin-top: 0;
+      }
+
       .sticky-footer {
         position: fixed;
         bottom: 0;

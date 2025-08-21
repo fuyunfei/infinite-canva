@@ -11,7 +11,10 @@ import LoadingSkeleton from './components/LoadingSkeleton';
 import AsciiArtDisplay from './components/AsciiArtDisplay';
 import TopicOutline from './components/TopicOutline';
 import OnePageView from './components/OnePageView';
+import ContentDisplay from './components/ContentDisplay';
+import Settings from './components/Settings';
 import { useTopicHistory } from './hooks/useTopicHistory';
+import { usePromptSettings } from './hooks/usePromptSettings';
 
 // A curated list of "banger" words and phrases for the random button.
 const PREDEFINED_WORDS = [
@@ -58,6 +61,15 @@ const App: React.FC = () => {
     clearHistory
   } = useTopicHistory();
   
+  const {
+    prompts: promptSettings,
+    updatePrompts,
+    resetToDefault: resetPrompts,
+    getContentPrompt,
+    getModifyPrompt,
+    getAsciiPrompt
+  } = usePromptSettings();
+  
   const [currentTopic, setCurrentTopic] = useState<string>('Hypertext');
   const [cards, setCards] = useState<CardData[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -69,6 +81,7 @@ const App: React.FC = () => {
   const [currentContentWords, setCurrentContentWords] = useState<number>(0);
   const [viewMode, setViewMode] = useState<'normal' | 'onepage'>('normal');
   const [isAIModifying, setIsAIModifying] = useState<boolean>(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
   
 
 
@@ -133,7 +146,7 @@ const App: React.FC = () => {
       }
     };
     
-    generateAsciiArt(currentTopic, handleAsciiChunk)
+    generateAsciiArt(currentTopic, handleAsciiChunk, getAsciiPrompt(currentTopic))
       .then(() => {
         if (!isCancelled) {
           // Final update with complete art
@@ -206,7 +219,7 @@ const App: React.FC = () => {
           });
         };
 
-        await generateContentCardsStream(currentTopic, previousTopic, handleChunk);
+        await generateContentCardsStream(currentTopic, previousTopic, handleChunk, getContentPrompt(currentTopic, previousTopic));
 
       } catch (e: unknown) {
         if (!isCancelled) {
@@ -333,41 +346,6 @@ const App: React.FC = () => {
         })
         .join('');
 
-      const modifyPrompt = `You are an expert content editor. The user wants to modify existing content about "${currentTopic}".
-
-CURRENT CONTENT:
-"""
-${currentContent}
-"""
-
-USER'S MODIFICATION REQUEST: "${prompt}"
-
-TASK: Please modify the existing content according to the user's request. Follow these guidelines:
-
-1. **PRESERVE STRUCTURE**: Keep the same general structure and organization unless the user specifically asks to change it
-2. **INCREMENTAL CHANGES**: Make targeted modifications rather than complete rewrites
-3. **MAINTAIN STYLE**: Keep the same writing style and tone
-4. **ENHANCE, DON'T REPLACE**: Build upon existing content rather than starting from scratch
-5. **KEEP MARKDOWN**: Maintain rich markdown formatting:
-   - Use **bold** for key terms and important concepts
-   - Use *italic* for emphasis and nuanced descriptions
-   - Use \`inline code\` for technical terms
-   - Use [links](url) for cross-references (use # as url)
-   - Use > blockquotes for quotes or definitions
-   - Use ==highlights== for critical insights
-   - Use lists and tables where appropriate
-
-6. **SPECIFIC MODIFICATIONS**: Based on the user's request:
-   - If they ask to "add examples" → add concrete examples while keeping existing content
-   - If they ask to "make it simpler" → simplify language but keep all key points
-   - If they ask to "make it more technical" → add technical details and terminology
-   - If they ask to "expand" → add more depth and detail
-   - If they ask to "focus on X" → emphasize X aspects while keeping context
-
-OUTPUT: Provide the modified content maintaining the same approximate length and structure as the original.
-
-IMPORTANT: Do NOT wrap your response in markdown code blocks. Provide the content directly without any code fence markers.`;
-
       // Clear current cards to show modification in progress
       setCards([]);
       
@@ -398,7 +376,8 @@ IMPORTANT: Do NOT wrap your response in markdown code blocks. Provide the conten
         });
       };
 
-      await generateModifiedContentStream(modifyPrompt, handleChunk);
+      const finalModifyPrompt = getModifyPrompt(currentTopic, currentContent, prompt);
+      await generateModifiedContentStream(finalModifyPrompt, handleChunk);
       
       // Update the node cache with modified content after a short delay
       setTimeout(() => {
@@ -434,6 +413,7 @@ IMPORTANT: Do NOT wrap your response in markdown code blocks. Provide the conten
         isLoading={isLoading}
         viewMode={viewMode}
         onViewModeChange={setViewMode}
+        onOpenSettings={() => setIsSettingsOpen(true)}
       />
       
 
@@ -484,20 +464,31 @@ IMPORTANT: Do NOT wrap your response in markdown code blocks. Provide the conten
               )}
               
               {!error && (
-                <div className="card-container" style={{ 
-                  display: 'grid', 
-                  gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
-                  gap: '1rem',
-                  alignItems: 'start'
-                }}>
-                  {cards.filter(card => card.title || card.content).map((card, index) => (
-                    <Card 
-                      key={index}
-                      title={card.title}
-                      content={card.content}
-                      onWordClick={handleWordClick}
-                    />
-                  ))}
+                <div className="card-container" style={{ padding: '0 0.5rem' }}>
+                  {cards.filter(card => card.title || card.content).map((card, index) => {
+                    // Check if content contains bento layout tags
+                    const hasBentoLayout = card.content.includes('<flex>') || card.content.includes('<card>');
+                    
+                    if (hasBentoLayout) {
+                      // Render as pure content without Card wrapper to avoid double borders
+                      return (
+                        <div key={index} style={{ margin: '1rem 0' }}>
+                          {card.title && <h3 style={{ margin: '0 0 1rem 0', fontWeight: 'bold', fontSize: '1.1em' }}>{card.title}</h3>}
+                          <ContentDisplay content={card.content} onWordClick={handleWordClick} />
+                        </div>
+                      );
+                    } else {
+                      // Use regular Card component for non-bento content
+                      return (
+                        <Card 
+                          key={index}
+                          title={card.title}
+                          content={card.content}
+                          onWordClick={handleWordClick}
+                        />
+                      );
+                    }
+                  })}
                 </div>
               )}
             </>
@@ -565,6 +556,15 @@ IMPORTANT: Do NOT wrap your response in markdown code blocks. Provide the conten
            </p>
          </div>
        </footer>
+
+       {/* Settings Modal */}
+       <Settings 
+         isOpen={isSettingsOpen}
+         onClose={() => setIsSettingsOpen(false)}
+         prompts={promptSettings}
+         onUpdatePrompts={updatePrompts}
+         onResetPrompts={resetPrompts}
+       />
     </div>
   );
 };

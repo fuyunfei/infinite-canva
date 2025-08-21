@@ -22,9 +22,8 @@ interface ContentDisplayProps {
  * @returns An array of JSX elements.
  */
 const renderInteractiveText = (text: string, onWordClick: (word: string) => void): (JSX.Element | string)[] => {
-  // Enhanced regex that handles multiple markdown formats
-  // Order matters: longer patterns first to avoid conflicts
-  const parts = text.split(/(\*\*[^*]+?\*\*|__[^_]+?__|~~[^~]+?~~|==.+?==|`[^`]+?`|\[[^\]]+?\]\([^)]+?\)|\*[^*]+?\*|_[^_]+?_)/g).filter(Boolean);
+  // Enhanced regex that properly handles multiple instances and nested content
+  const parts = text.split(/(\*\*[^*]+?\*\*|__[^_]+?__|~~[^~]+?~~|==[\s\S]*?==|`[^`]+?`|\[[^\]]+?\]\([^)]+?\)|\*[^*\s][^*]*?\*|_[^_\s][^_]*?_)/g).filter(Boolean);
 
   return parts.flatMap((part, i) => {
     // Bold text - CLICKABLE AS ENTIRE UNIT
@@ -88,7 +87,7 @@ const renderInteractiveText = (text: string, onWordClick: (word: string) => void
           onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#ffe066'}
           onMouseOut={(e) => e.currentTarget.style.backgroundColor = '#fff3cd'}
         >
-          {content}
+          {renderInteractiveText(content, onWordClick)}
         </mark>
       );
     }
@@ -129,7 +128,7 @@ const renderInteractiveText = (text: string, onWordClick: (word: string) => void
              onClick={(e) => {
                e.preventDefault();
                e.stopPropagation();
-               onWordClick(linkText); // Click the link text as navigation
+               onWordClick(linkText);
              }}
              style={{ 
                color: '#1a73e8', 
@@ -149,7 +148,8 @@ const renderInteractiveText = (text: string, onWordClick: (word: string) => void
     }
     
     // Italic text - CLICKABLE AS ENTIRE UNIT (must come after bold to avoid conflicts)
-    if ((part.startsWith('*') && part.endsWith('*')) || (part.startsWith('_') && part.endsWith('_'))) {
+    if ((part.startsWith('*') && part.endsWith('*') && !part.startsWith('**')) || 
+        (part.startsWith('_') && part.endsWith('_') && !part.startsWith('__'))) {
       const content = part.slice(1, -1);
       return (
         <em 
@@ -174,6 +174,100 @@ const renderInteractiveText = (text: string, onWordClick: (word: string) => void
   });
 };
 
+/**
+ * Post-processes elements to handle card and flex containers
+ */
+const processCardAndFlexElements = (elements: JSX.Element[]): JSX.Element[] => {
+  const result: JSX.Element[] = [];
+  let i = 0;
+  
+  while (i < elements.length) {
+    const element = elements[i];
+    
+    // Check for flex container start
+    if (element.props && element.props['data-flex-start']) {
+      const direction = element.props['data-flex-start'];
+      const gap = element.props['data-gap'] || '1rem';
+      
+      // Find the matching flex end
+      let flexContent: JSX.Element[] = [];
+      i++; // Skip the flex start marker
+      
+      while (i < elements.length) {
+        const currentElement = elements[i];
+        if (currentElement.props && currentElement.props['data-flex-end']) {
+          break; // Found flex end
+        }
+        flexContent.push(currentElement);
+        i++;
+      }
+      
+      // Create flex container
+      result.push(
+        <div key={`flex-container-${result.length}`} className="bento-flex-container" style={{
+          display: 'flex',
+          flexDirection: direction,
+          gap: gap,
+          margin: '1rem 0',
+          flexWrap: 'wrap',
+          alignItems: 'stretch',
+          justifyContent: 'flex-start',
+          width: '100%'
+        }}>
+          {processCardAndFlexElements(flexContent)}
+        </div>
+      );
+    }
+    // Check for card start
+    else if (element.props && element.props['data-card-start']) {
+      const cardType = element.props['data-card-start'];
+      const isFlexCard = cardType === 'flex';
+      
+      // Find the matching card end
+      let cardContent: JSX.Element[] = [];
+      i++; // Skip the card start marker
+      
+      while (i < elements.length) {
+        const currentElement = elements[i];
+        if (currentElement.props && currentElement.props['data-card-end']) {
+          break; // Found card end
+        }
+        cardContent.push(currentElement);
+        i++;
+      }
+      
+      // Create card container
+      result.push(
+        <div key={`card-container-${result.length}`} className={isFlexCard ? 'bento-card flex' : 'bento-card'} style={{
+          background: '#ffffff',
+          border: '1px solid #e0e0e0',
+          borderRadius: '12px',
+          padding: '1.5rem',
+          margin: '0.5rem 0',
+          boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+          transition: 'all 0.3s ease',
+          flex: isFlexCard ? '1 1 auto' : 'none',
+          minWidth: isFlexCard ? '200px' : 'auto',
+          maxWidth: '100%',
+          overflow: 'hidden',
+          wordWrap: 'break-word'
+        }}>
+          <div className="card-content">
+            {processCardAndFlexElements(cardContent)}
+          </div>
+        </div>
+      );
+    }
+    // Regular element
+    else {
+      result.push(element);
+    }
+    
+    i++;
+  }
+  
+  return result;
+};
 
 /**
  * Renders enhanced markdown content with interactive words.
@@ -234,19 +328,17 @@ const InteractiveContent: React.FC<{
   const flushCodeBlock = () => {
     if (currentCodeBlock) {
       elements.push(
-        <pre key={`code-${elements.length}`} style={{
-          backgroundColor: '#f6f8fa',
-          border: '1px solid #e1e4e8',
-          borderRadius: '6px',
-          padding: '16px',
-          margin: '1em 0',
+        <pre key={`pre-${elements.length}`} style={{ 
+          backgroundColor: '#f6f8fa', 
+          padding: '1em', 
+          borderRadius: '6px', 
           overflow: 'auto',
-          fontSize: '14px',
-          lineHeight: '1.45'
+          margin: '1em 0',
+          border: '1px solid #e1e4e8'
         }}>
           <code style={{ 
             fontFamily: 'Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
-            color: '#24292e'
+            fontSize: '0.9em'
           }}>
             {currentCodeBlock.lines.join('\n')}
           </code>
@@ -258,36 +350,21 @@ const InteractiveContent: React.FC<{
 
   const flushTable = () => {
     if (currentTable.length > 0) {
-      const [header, ...rows] = currentTable;
       elements.push(
-        <table key={`table-${elements.length}`} style={{
-          borderCollapse: 'collapse',
-          width: '100%',
+        <table key={`table-${elements.length}`} style={{ 
+          borderCollapse: 'collapse', 
+          width: '100%', 
           margin: '1em 0',
           border: '1px solid #dfe2e5'
         }}>
-          <thead>
-            <tr>
-              {header.map((cell, i) => (
-                <th key={i} style={{
-                  border: '1px solid #dfe2e5',
-                  padding: '8px 12px',
-                  backgroundColor: '#f6f8fa',
-                  fontWeight: '600',
-                  textAlign: 'left'
-                }}>
-                  {renderInteractiveText(cell, onWordClick)}
-                </th>
-              ))}
-            </tr>
-          </thead>
           <tbody>
-            {rows.map((row, i) => (
-              <tr key={i}>
+            {currentTable.map((row, i) => (
+              <tr key={i} style={{ borderBottom: '1px solid #dfe2e5' }}>
                 {row.map((cell, j) => (
-                  <td key={j} style={{
-                    border: '1px solid #dfe2e5',
-                    padding: '8px 12px'
+                  <td key={j} style={{ 
+                    padding: '0.75em', 
+                    borderRight: j < row.length - 1 ? '1px solid #dfe2e5' : 'none',
+                    textAlign: 'left'
                   }}>
                     {renderInteractiveText(cell, onWordClick)}
                   </td>
@@ -303,6 +380,47 @@ const InteractiveContent: React.FC<{
 
   lines.forEach((line, index) => {
     const trimmedLine = line.trim();
+    
+    // Card tags - <card> or <card flex>
+    if (trimmedLine.startsWith('<card') && trimmedLine.endsWith('>')) {
+      flushList();
+      flushBlockquote();
+      flushTable();
+      
+      // Parse card attributes
+      const isFlexCard = trimmedLine.includes('flex');
+      
+      // Mark that we're starting a card (we'll collect content until </card>)
+      elements.push(<div key={`card-marker-${index}`} data-card-start={isFlexCard ? 'flex' : 'normal'} />);
+      return;
+    }
+    
+    // Card end tag - we'll process this differently
+    if (trimmedLine === '</card>') {
+      elements.push(<div key={`card-end-${index}`} data-card-end="true" />);
+      return;
+    }
+    
+    // Flexbox container
+    if (trimmedLine.startsWith('<flex') && trimmedLine.endsWith('>')) {
+      flushList();
+      flushBlockquote();
+      flushTable();
+      
+      // Parse flex attributes
+      const direction = trimmedLine.includes('column') ? 'column' : 'row';
+      const gap = trimmedLine.includes('gap-') ? 
+        trimmedLine.match(/gap-(\d+)/)?.[1] + 'px' : '1rem';
+      
+      elements.push(<div key={`flex-marker-${index}`} data-flex-start={direction} data-gap={gap} />);
+      return;
+    }
+    
+    // Flexbox end tag
+    if (trimmedLine === '</flex>') {
+      elements.push(<div key={`flex-end-${index}`} data-flex-end="true" />);
+      return;
+    }
     
     // Code blocks
     if (trimmedLine.startsWith('```')) {
@@ -409,7 +527,10 @@ const InteractiveContent: React.FC<{
   flushCodeBlock();
   flushTable();
 
-  return <>{elements}</>;
+  // Post-process to handle card and flex containers
+  const processedElements = processCardAndFlexElements(elements);
+
+  return <>{processedElements}</>;
 };
 
 const ContentDisplay: React.FC<ContentDisplayProps> = ({ content, onWordClick }) => {

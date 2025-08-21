@@ -10,9 +10,10 @@ interface SearchBarProps {
   isLoading: boolean;
   viewMode: 'normal' | 'onepage';
   onViewModeChange: (mode: 'normal' | 'onepage') => void;
+  onOpenSettings: () => void;
 }
 
-const SearchBar: React.FC<SearchBarProps> = ({ onSearch, onRandom, isLoading, viewMode, onViewModeChange }) => {
+const SearchBar: React.FC<SearchBarProps> = ({ onSearch, onRandom, isLoading, viewMode, onViewModeChange, onOpenSettings }) => {
   const [query, setQuery] = useState('');
 
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
@@ -45,6 +46,13 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch, onRandom, isLoading, vi
         title={viewMode === 'normal' ? 'Switch to One Page View' : 'Switch to Normal View'}
       >
         {viewMode === 'normal' ? 'One Page' : 'Normal'}
+      </button>
+      <button 
+        onClick={onOpenSettings}
+        className="random-button"
+        title="Settings"
+      >
+        Settings
       </button>
     </div>
   );

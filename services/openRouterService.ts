@@ -140,42 +140,65 @@ async function makeOpenRouterRequest(prompt: string, model: string = textModelNa
 export async function generateContentCardsStream(
   topic: string,
   previousTopic: string | null | undefined,
-  onChunk: (chunk: CardStreamChunk) => void
+  onChunk: (chunk: CardStreamChunk) => void,
+  customPrompt?: string
 ): Promise<void> {
   if (!process.env.OPENROUTER_API_KEY) {
     throw new Error('OPENROUTER_API_KEY is not configured. Please check your environment variables to continue.');
   }
 
-  // Choose prompt based on whether it's a continuation or a new topic
-  const prompt = previousTopic
+  // Use custom prompt if provided, otherwise choose based on whether it's a continuation or a new topic
+  const prompt = customPrompt || (previousTopic
     ? `You are an entry in a surreal, infinite wikipedia in chinese. The user was just reading about "${previousTopic}" and clicked on the word "${topic}". Provide distinct perspective exploring the connection, relationship, or tangential thoughts between these two concepts. 
 
-IMPORTANT: Use rich markdown formatting throughout your response:
+IMPORTANT: Use rich markdown formatting and new bento layout features:
+
+MARKDOWN FORMATTING:
 - Use **bold** for key terms and important concepts
 - Use *italic* for emphasis and nuanced descriptions  
 - Use \`inline code\` for technical terms or specific references
 - Use [links](url) for cross-references (use # as url)
 - Use > blockquotes for notable quotes or definitions
-- Use lists and tables where appropriate
 - Use ==highlights== for critical insights
 
-Write 200 words total with heavy use of markdown formatting. 
+BENTO LAYOUT (NEW):
+- Use <flex> containers for side-by-side layouts
+- Use <card> for individual content sections
+- Use <card flex> for flexible/responsive cards
+- Example structure:
+  <flex>
+  <card>Regular card content</card>
+  <card flex>Flexible card that adapts</card>
+  </flex>
+
+Write 200 words total with heavy use of formatting and bento layouts. 
 reply only in chinese.
 `
     : `You are a surreal, infinite wikipedia . For the term "${topic}", provide few distinct sections that give a concise, wikipedia-style definition from different perspectives.
 
-IMPORTANT: Use rich markdown formatting throughout your response:
+IMPORTANT: Use rich markdown formatting and new bento layout features:
+
+MARKDOWN FORMATTING:
 - Use **bold** for key terms and important concepts
 - Use *italic* for emphasis and nuanced descriptions
 - Use \`inline code\` for technical terms or specific references  
 - Use [links](url) for cross-references (use # as url)
 - Use > blockquotes for notable quotes or definitions
-- Use lists and tables where appropriate
 - Use ==highlights== for critical insights
 
-Write 150 words total with heavy use of markdown formatting.
+BENTO LAYOUT (NEW):
+- Use <flex> containers for side-by-side layouts
+- Use <card> for individual content sections
+- Use <card flex> for flexible/responsive cards
+- Example structure:
+  <flex>
+  <card>Regular card content</card>
+  <card flex>Flexible card that adapts</card>
+  </flex>
+
+Write 150 words total with heavy use of formatting and bento layouts.
 reply only in chinese.
-`;
+`);
   
   try {
     let contentBuffer = '';
@@ -233,24 +256,41 @@ export async function getRandomWord(): Promise<string> {
  */
 export async function generateAsciiArtStream(
   topic: string, 
-  onChunk: (chunk: string) => void
+  onChunk: (chunk: string) => void,
+  customPrompt?: string
 ): Promise<void> {
   if (!process.env.OPENROUTER_API_KEY) {
     throw new Error('OPENROUTER_API_KEY is not configured.');
   }
   
-  const prompt = `1. "art": simple and insightful meta ASCII visualization of the topic: "${topic}".   
-  - Palette: │─┌┐└┘├┤┬┴┼►◄▲▼○●◐◑░▒▓█▀▄■□▪▫★☆♦♠♣♥⟨⟩/\\_|
-  - Shape mirrors concept - make the visual form embody the word's essence
-  - Examples: 
-    * "explosion" → radiating lines from center
-    * "hierarchy" → pyramid structure
-    * "flow" → curved directional lines
-  - Return as single string with \n for line breaks`;
+  const prompt = customPrompt || `Create simple ASCII art for "${topic}". 
+
+Requirements:
+- Use these characters: │─┌┐└┘├┤┬┴┼►◄▲▼○●◐◑░▒▓█▀▄■□▪▫★☆♦♠♣♥⟨⟩/\\_|
+- Shape should mirror the concept's essence
+- Return ONLY the ASCII art characters
+- Do NOT use markdown code blocks
+- Do NOT add explanations or extra text
+- Use \\n for line breaks
+
+Examples:
+- "explosion" → radiating lines from center
+- "hierarchy" → pyramid structure  
+- "flow" → curved directional lines`;
   
   try {
     for await (const chunk of makeOpenRouterStreamRequest(prompt, artModelName)) {
-      onChunk(chunk);
+      // Filter out markdown code block markers from ASCII art
+      let cleanChunk = chunk;
+      
+      // Remove code block fences and language specifiers
+      cleanChunk = cleanChunk.replace(/```[\w]*\s*/g, '');
+      cleanChunk = cleanChunk.replace(/```\s*/g, '');
+      
+      // Only send the chunk if it has content after cleaning
+      if (cleanChunk) {
+        onChunk(cleanChunk);
+      }
     }
   } catch (error) {
     console.error('Error generating streaming ASCII art:', error);
@@ -266,9 +306,10 @@ export async function generateAsciiArtStream(
  */
 export async function generateAsciiArt(
   topic: string, 
-  onChunk: (chunk: string) => void
+  onChunk: (chunk: string) => void,
+  customPrompt?: string
 ): Promise<void> {
-  return generateAsciiArtStream(topic, onChunk);
+  return generateAsciiArtStream(topic, onChunk, customPrompt);
 }
 
 /**
