@@ -4,7 +4,7 @@
 */
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { generateContentCardsStream, generateModifiedContentStream, generateAsciiArt, AsciiArtData, CardData, CardStreamChunk } from './services/openRouterService';
+import { generateContentCardsStream, generateModifiedContentStream, generateAsciiArt, extractClickableWords, generateBatchRelatedQuestions, AsciiArtData, CardData, CardStreamChunk } from './services/openRouterService';
 import Card from './components/Card';
 import SearchBar from './components/SearchBar';
 import LoadingSkeleton from './components/LoadingSkeleton';
@@ -82,6 +82,7 @@ const App: React.FC = () => {
   const [viewMode, setViewMode] = useState<'normal' | 'onepage'>('normal');
   const [isAIModifying, setIsAIModifying] = useState<boolean>(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
+  const [relatedQuestions, setRelatedQuestions] = useState<Record<string, string[]>>({});
   
 
 
@@ -256,6 +257,32 @@ const App: React.FC = () => {
       });
     }
   }, [cards, asciiArt, isLoading, generationTime, getCurrentNode, updateNodeContent]);
+
+  // Generate related questions after content is complete
+  useEffect(() => {
+    const generateRelatedQuestionsForContent = async () => {
+      if (cards.length > 0 && !isLoading) {
+        try {
+          // Extract all clickable words from all cards
+          const allContent = cards
+            .map(card => `${card.title}\n${card.content}`)
+            .join('\n');
+          
+          const clickableWords = extractClickableWords(allContent);
+          
+          if (clickableWords.length > 0) {
+            console.log('Generating questions for words:', clickableWords);
+            const batchQuestions = await generateBatchRelatedQuestions(clickableWords);
+            setRelatedQuestions(batchQuestions);
+          }
+        } catch (error) {
+          console.error('Failed to generate batch related questions:', error);
+        }
+      }
+    };
+
+    generateRelatedQuestionsForContent();
+  }, [cards, isLoading]);
 
   // When a word is clicked, add it as a child of current node
   const handleWordClick = useCallback((word: string) => {
@@ -487,7 +514,7 @@ const App: React.FC = () => {
                       return (
                         <div key={index} style={{ margin: '1rem 0' }}>
                           {card.title && <h3 style={{ margin: '0 0 1rem 0', fontWeight: 'bold', fontSize: '1.1em' }}>{card.title}</h3>}
-                          <ContentDisplay content={card.content} onWordClick={handleWordClick} />
+                          <ContentDisplay content={card.content} onWordClick={handleWordClick} relatedQuestions={relatedQuestions} />
                         </div>
                       );
                     } else {
@@ -498,6 +525,7 @@ const App: React.FC = () => {
                           title={card.title}
                           content={card.content}
                           onWordClick={handleWordClick}
+                          relatedQuestions={relatedQuestions}
                         />
                       );
                     }
@@ -511,6 +539,7 @@ const App: React.FC = () => {
               nodes={topicHistoryState.nodes} 
               onWordClick={handleWordClick}
               onSwitchToNormalMode={() => setViewMode('normal')}
+              relatedQuestions={relatedQuestions}
             />
           )}
         </div>

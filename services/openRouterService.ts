@@ -353,3 +353,163 @@ export async function generateModifiedContentStream(
     throw new Error(`Could not generate modified content. ${errorMessage}`);
   }
 }
+
+/**
+ * Extracts all clickable words from markdown content
+ */
+export function extractClickableWords(content: string): string[] {
+  const words = new Set<string>();
+  
+  // Extract from bold text
+  const boldMatches = content.match(/\*\*([^*]+?)\*\*|__([^_]+?)__/g);
+  if (boldMatches) {
+    boldMatches.forEach(match => {
+      const word = match.replace(/\*\*|__/g, '').trim();
+      if (word.length > 2) words.add(word);
+    });
+  }
+  
+  // Extract from italic text
+  const italicMatches = content.match(/\*([^*\s][^*]*?)\*|_([^_\s][^_]*?)_/g);
+  if (italicMatches) {
+    italicMatches.forEach(match => {
+      const word = match.replace(/\*|_/g, '').trim();
+      if (word.length > 2) words.add(word);
+    });
+  }
+  
+  // Extract from inline code
+  const codeMatches = content.match(/`([^`]+?)`/g);
+  if (codeMatches) {
+    codeMatches.forEach(match => {
+      const word = match.replace(/`/g, '').trim();
+      if (word.length > 2) words.add(word);
+    });
+  }
+  
+  // Extract from highlights
+  const highlightMatches = content.match(/==([^=]+?)==/g);
+  if (highlightMatches) {
+    highlightMatches.forEach(match => {
+      const word = match.replace(/==/g, '').trim();
+      if (word.length > 2) words.add(word);
+    });
+  }
+  
+  // Extract from links
+  const linkMatches = content.match(/\[([^\]]+?)\]/g);
+  if (linkMatches) {
+    linkMatches.forEach(match => {
+      const word = match.replace(/\[|\]/g, '').trim();
+      if (word.length > 2) words.add(word);
+    });
+  }
+  
+  return Array.from(words);
+}
+
+/**
+ * Generates related questions for multiple words in a single batch call
+ */
+export async function generateBatchRelatedQuestions(words: string[]): Promise<Record<string, string[]>> {
+  if (!process.env.OPENROUTER_API_KEY) {
+    throw new Error('OPENROUTER_API_KEY is not configured.');
+  }
+
+  if (words.length === 0) return {};
+
+  const prompt = `Generate related questions for multiple concepts. For each concept, provide 3 short, thought-provoking questions (5-10 words each).
+
+CONCEPTS: ${words.map(w => `"${w}"`).join(', ')}
+
+FORMAT: Return as JSON object where each key is the concept and value is array of 3 questions.
+
+REQUIREMENTS:
+- Each question should be 5-10 words maximum
+- Focus on different aspects: origin, connection, implication
+- Make questions that would lead to interesting exploration
+- Return valid JSON only
+
+EXAMPLE:
+{
+  "gravity": [
+    "What created gravity's fundamental force?",
+    "How does gravity shape social structures?", 
+    "Why do ideas have gravitational pull?"
+  ],
+  "time": [
+    "How do cultures perceive time differently?",
+    "What makes time feel elastic?",
+    "Why does time accelerate with age?"
+  ]
+}`;
+
+  try {
+    const response = await makeOpenRouterRequest(prompt, textModelName);
+    let jsonStr = response.trim();
+    
+    // Remove any markdown code fences if present
+    const fenceRegex = /^```(?:json)?\s*\n?(.*?)\n?\s*```$/s;
+    const match = jsonStr.match(fenceRegex);
+    if (match && match[1]) {
+      jsonStr = match[1].trim();
+    }
+
+    const questionsData = JSON.parse(jsonStr);
+    
+    // Validate and clean the response
+    const result: Record<string, string[]> = {};
+    for (const word of words) {
+      if (questionsData[word] && Array.isArray(questionsData[word])) {
+        result[word] = questionsData[word].slice(0, 3); // Ensure max 3 questions
+      } else {
+        result[word] = []; // Fallback to empty array
+      }
+    }
+    
+    return result;
+  } catch (error) {
+    console.error('Error generating batch related questions:', error);
+    // Return empty questions for all words on error
+    const result: Record<string, string[]> = {};
+    words.forEach(word => result[word] = []);
+    return result;
+  }
+}
+
+/**
+ * Generates related questions for a given word/concept
+ */
+export async function generateRelatedQuestions(word: string): Promise<string[]> {
+  if (!process.env.OPENROUTER_API_KEY) {
+    throw new Error('OPENROUTER_API_KEY is not configured.');
+  }
+
+  const prompt = `Generate 3 short, thought-provoking questions related to "${word}". 
+
+Requirements:
+- Each question should be 5-10 words maximum
+- Focus on different aspects: origin, connection, implication
+- Make questions that would lead to interesting exploration
+- Return only the questions, one per line
+- No numbering, no extra text
+
+Examples for "gravity":
+What created gravity's fundamental force?
+How does gravity shape social structures?
+Why do ideas have gravitational pull?`;
+
+  try {
+    const response = await makeOpenRouterRequest(prompt, textModelName);
+    const questions = response
+      .trim()
+      .split('\n')
+      .filter(q => q.trim().length > 0)
+      .slice(0, 3); // Ensure max 3 questions
+    
+    return questions;
+  } catch (error) {
+    console.error('Error generating related questions:', error);
+    return []; // Return empty array on error
+  }
+}

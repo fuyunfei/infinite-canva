@@ -11,9 +11,10 @@ interface OnePageViewProps {
   nodes: Record<string, TopicNode>;
   onWordClick: (word: string) => void;
   onSwitchToNormalMode?: () => void;
+  relatedQuestions?: Record<string, string[]>;
 }
 
-const OnePageView: React.FC<OnePageViewProps> = ({ nodes, onWordClick, onSwitchToNormalMode }) => {
+const OnePageView: React.FC<OnePageViewProps> = ({ nodes, onWordClick, onSwitchToNormalMode, relatedQuestions = {} }) => {
   const [showBackToTop, setShowBackToTop] = useState(false);
   
   useEffect(() => {
@@ -129,6 +130,7 @@ const OnePageView: React.FC<OnePageViewProps> = ({ nodes, onWordClick, onSwitchT
                     title={card.title}
                     content={card.content}
                     onWordClick={handleWordClick}
+                    relatedQuestions={relatedQuestions}
                   />
                 ))}
             </div>

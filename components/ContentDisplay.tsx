@@ -2,11 +2,13 @@
  * @license
  * SPDX-License-Identifier: Apache-2.0
 */
-import React, { JSX } from 'react';
+import React, { JSX, useState, useRef } from 'react';
+import HoverPopup from './HoverPopup';
 
 interface ContentDisplayProps {
   content: string;
   onWordClick: (word: string) => void;
+  relatedQuestions?: Record<string, string[]>;
 }
 
 /**
@@ -21,7 +23,12 @@ interface ContentDisplayProps {
  * @param onWordClick The callback for when a word is clicked.
  * @returns An array of JSX elements.
  */
-const renderInteractiveText = (text: string, onWordClick: (word: string) => void): (JSX.Element | string)[] => {
+const renderInteractiveText = (
+  text: string, 
+  onWordClick: (word: string) => void,
+  onWordHover: (word: string, event: React.MouseEvent) => void,
+  onWordLeave: () => void
+): (JSX.Element | string)[] => {
   // Enhanced regex that properly handles multiple instances and nested content
   const parts = text.split(/(\*\*[^*]+?\*\*|__[^_]+?__|~~[^~]+?~~|==[\s\S]*?==|`[^`]+?`|\[[^\]]+?\]\([^)]+?\)|\*[^*\s][^*]*?\*|_[^_\s][^_]*?_)/g).filter(Boolean);
 
@@ -33,14 +40,20 @@ const renderInteractiveText = (text: string, onWordClick: (word: string) => void
         <strong 
           key={i} 
           onClick={() => onWordClick(content)}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.backgroundColor = '#f0f0f0';
+            onWordHover(content, e);
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.backgroundColor = 'transparent';
+            onWordLeave();
+          }}
           style={{ 
             cursor: 'pointer',
             padding: '1px 2px',
             borderRadius: '2px',
             transition: 'background-color 0.2s'
           }}
-          onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#f0f0f0'}
-          onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
         >
           {content}
         </strong>
@@ -54,6 +67,14 @@ const renderInteractiveText = (text: string, onWordClick: (word: string) => void
         <del 
           key={i} 
           onClick={() => onWordClick(content)}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.backgroundColor = '#f0f0f0';
+            onWordHover(content, e);
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.backgroundColor = 'transparent';
+            onWordLeave();
+          }}
           style={{ 
             textDecoration: 'line-through', 
             opacity: 0.7,
@@ -62,8 +83,6 @@ const renderInteractiveText = (text: string, onWordClick: (word: string) => void
             borderRadius: '2px',
             transition: 'background-color 0.2s'
           }}
-          onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#f0f0f0'}
-          onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
         >
           {content}
         </del>
@@ -77,6 +96,14 @@ const renderInteractiveText = (text: string, onWordClick: (word: string) => void
         <mark 
           key={i} 
           onClick={() => onWordClick(content)}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.backgroundColor = '#ffe066';
+            onWordHover(content, e);
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.backgroundColor = '#fff3cd';
+            onWordLeave();
+          }}
           style={{ 
             backgroundColor: '#fff3cd', 
             padding: '1px 2px', 
@@ -84,10 +111,8 @@ const renderInteractiveText = (text: string, onWordClick: (word: string) => void
             cursor: 'pointer',
             transition: 'background-color 0.2s'
           }}
-          onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#ffe066'}
-          onMouseOut={(e) => e.currentTarget.style.backgroundColor = '#fff3cd'}
         >
-          {renderInteractiveText(content, onWordClick)}
+          {renderInteractiveText(content, onWordClick, onWordHover, onWordLeave)}
         </mark>
       );
     }
@@ -99,6 +124,14 @@ const renderInteractiveText = (text: string, onWordClick: (word: string) => void
         <code 
           key={i} 
           onClick={() => onWordClick(content)}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.backgroundColor = '#e8eaed';
+            onWordHover(content, e);
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.backgroundColor = '#f1f3f4';
+            onWordLeave();
+          }}
           style={{ 
             backgroundColor: '#f1f3f4', 
             padding: '2px 4px', 
@@ -109,8 +142,6 @@ const renderInteractiveText = (text: string, onWordClick: (word: string) => void
             cursor: 'pointer',
             transition: 'background-color 0.2s'
           }}
-          onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#e8eaed'}
-          onMouseOut={(e) => e.currentTarget.style.backgroundColor = '#f1f3f4'}
         >
           {content}
         </code>
@@ -130,6 +161,14 @@ const renderInteractiveText = (text: string, onWordClick: (word: string) => void
                e.stopPropagation();
                onWordClick(linkText);
              }}
+             onMouseEnter={(e) => {
+               e.currentTarget.style.backgroundColor = '#f0f0f0';
+               onWordHover(linkText, e);
+             }}
+             onMouseLeave={(e) => {
+               e.currentTarget.style.backgroundColor = 'transparent';
+               onWordLeave();
+             }}
              style={{ 
                color: '#1a73e8', 
                textDecoration: 'underline',
@@ -138,8 +177,6 @@ const renderInteractiveText = (text: string, onWordClick: (word: string) => void
                borderRadius: '2px',
                transition: 'background-color 0.2s'
              }}
-             onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#f0f0f0'}
-             onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
           >
             {linkText}
           </a>
@@ -155,14 +192,20 @@ const renderInteractiveText = (text: string, onWordClick: (word: string) => void
         <em 
           key={i}
           onClick={() => onWordClick(content)}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.backgroundColor = '#f0f0f0';
+            onWordHover(content, e);
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.backgroundColor = 'transparent';
+            onWordLeave();
+          }}
           style={{ 
             cursor: 'pointer',
             padding: '1px 2px',
             borderRadius: '2px',
             transition: 'background-color 0.2s'
           }}
-          onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#f0f0f0'}
-          onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
         >
           {content}
         </em>
@@ -276,7 +319,9 @@ const processCardAndFlexElements = (elements: JSX.Element[]): JSX.Element[] => {
 const InteractiveContent: React.FC<{
   content: string;
   onWordClick: (word: string) => void;
-}> = ({ content, onWordClick }) => {
+  onWordHover: (word: string, event: React.MouseEvent) => void;
+  onWordLeave: () => void;
+}> = ({ content, onWordClick, onWordHover, onWordLeave }) => {
   const lines = content.split('\n');
   const elements: JSX.Element[] = [];
   let currentListItems: (JSX.Element | string)[][] = [];
@@ -316,7 +361,7 @@ const InteractiveContent: React.FC<{
         }}>
           {currentBlockquote.map((line, i) => (
             <p key={i} style={{ margin: '0.5em 0' }}>
-              {renderInteractiveText(line, onWordClick)}
+              {renderInteractiveText(line, onWordClick, onWordHover, onWordLeave)}
             </p>
           ))}
         </blockquote>
@@ -366,7 +411,7 @@ const InteractiveContent: React.FC<{
                     borderRight: j < row.length - 1 ? '1px solid #dfe2e5' : 'none',
                     textAlign: 'left'
                   }}>
-                    {renderInteractiveText(cell, onWordClick)}
+                    {renderInteractiveText(cell, onWordClick, onWordHover, onWordLeave)}
                   </td>
                 ))}
               </tr>
@@ -477,7 +522,7 @@ const InteractiveContent: React.FC<{
       flushList();
       flushBlockquote();
       flushTable();
-      currentOrderedListItems.push(renderInteractiveText(trimmedLine.replace(/^\d+\. /, ''), onWordClick));
+      currentOrderedListItems.push(renderInteractiveText(trimmedLine.replace(/^\d+\. /, ''), onWordClick, onWordHover, onWordLeave));
       return;
     }
     
@@ -488,7 +533,7 @@ const InteractiveContent: React.FC<{
       if (currentOrderedListItems.length > 0) {
         flushList();
       }
-      currentListItems.push(renderInteractiveText(trimmedLine.substring(2), onWordClick));
+      currentListItems.push(renderInteractiveText(trimmedLine.substring(2), onWordClick, onWordHover, onWordLeave));
       return;
     }
     
@@ -498,13 +543,13 @@ const InteractiveContent: React.FC<{
     flushTable();
     
     if (trimmedLine.startsWith('#### ')) {
-      elements.push(<h4 key={index} style={{ margin: '1.5rem 0 0.5rem 0', fontSize: '1.1em', fontWeight: '600' }}>{renderInteractiveText(trimmedLine.substring(5), onWordClick)}</h4>);
+      elements.push(<h4 key={index} style={{ margin: '1.5rem 0 0.5rem 0', fontSize: '1.1em', fontWeight: '600' }}>{renderInteractiveText(trimmedLine.substring(5), onWordClick, onWordHover, onWordLeave)}</h4>);
     } else if (trimmedLine.startsWith('### ')) {
-      elements.push(<h3 key={index} style={{ margin: '1.5rem 0 0.5rem 0', fontSize: '1.2em', fontWeight: '600' }}>{renderInteractiveText(trimmedLine.substring(4), onWordClick)}</h3>);
+      elements.push(<h3 key={index} style={{ margin: '1.5rem 0 0.5rem 0', fontSize: '1.2em', fontWeight: '600' }}>{renderInteractiveText(trimmedLine.substring(4), onWordClick, onWordHover, onWordLeave)}</h3>);
     } else if (trimmedLine.startsWith('## ')) {
-      elements.push(<h2 key={index} style={{ margin: '1.5rem 0 0.5rem 0', fontSize: '1.4em', fontWeight: '600' }}>{renderInteractiveText(trimmedLine.substring(3), onWordClick)}</h2>);
+      elements.push(<h2 key={index} style={{ margin: '1.5rem 0 0.5rem 0', fontSize: '1.4em', fontWeight: '600' }}>{renderInteractiveText(trimmedLine.substring(3), onWordClick, onWordHover, onWordLeave)}</h2>);
     } else if (trimmedLine.startsWith('# ')) {
-      elements.push(<h1 key={index} style={{ margin: '1.5rem 0 0.5rem 0', fontSize: '1.6em', fontWeight: '600' }}>{renderInteractiveText(trimmedLine.substring(2), onWordClick)}</h1>);
+      elements.push(<h1 key={index} style={{ margin: '1.5rem 0 0.5rem 0', fontSize: '1.6em', fontWeight: '600' }}>{renderInteractiveText(trimmedLine.substring(2), onWordClick, onWordHover, onWordLeave)}</h1>);
     } else if (trimmedLine === '---' || trimmedLine === '***') {
       // Horizontal rule
       elements.push(<hr key={index} style={{ border: 'none', borderTop: '1px solid #dfe2e5', margin: '2em 0' }} />);
@@ -512,7 +557,7 @@ const InteractiveContent: React.FC<{
       // Regular paragraph
       elements.push(
         <p key={index} style={{ margin: '1em 0', lineHeight: '1.6' }}>
-          {renderInteractiveText(line, onWordClick)}
+          {renderInteractiveText(line, onWordClick, onWordHover, onWordLeave)}
         </p>
       );
     } else {
@@ -533,9 +578,85 @@ const InteractiveContent: React.FC<{
   return <>{processedElements}</>;
 };
 
-const ContentDisplay: React.FC<ContentDisplayProps> = ({ content, onWordClick }) => {
+const ContentDisplay: React.FC<ContentDisplayProps> = ({ content, onWordClick, relatedQuestions = {} }) => {
+  const [hoverState, setHoverState] = useState<{
+    word: string;
+    position: { x: number; y: number };
+    isVisible: boolean;
+  }>({
+    word: '',
+    position: { x: 0, y: 0 },
+    isVisible: false
+  });
+  
+  const hideTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  const handleWordHover = (word: string, event: React.MouseEvent) => {
+    // Clear any existing timeout
+    if (hideTimeoutRef.current) {
+      clearTimeout(hideTimeoutRef.current);
+      hideTimeoutRef.current = null;
+    }
+
+    const rect = event.currentTarget.getBoundingClientRect();
+    setHoverState({
+      word: word,
+      position: {
+        x: rect.left + rect.width / 2,
+        y: rect.top
+      },
+      isVisible: true
+    });
+  };
+
+  const handleWordLeave = () => {
+    // Delay hiding to allow mouse to move to popup
+    hideTimeoutRef.current = setTimeout(() => {
+      setHoverState(prev => ({ ...prev, isVisible: false }));
+    }, 50);
+  };
+
+  const handlePopupEnter = () => {
+    // Clear hide timeout when mouse enters popup
+    if (hideTimeoutRef.current) {
+      clearTimeout(hideTimeoutRef.current);
+      hideTimeoutRef.current = null;
+    }
+  };
+
+  const handlePopupLeave = () => {
+    // Hide popup when mouse leaves popup
+    hideTimeoutRef.current = setTimeout(() => {
+      setHoverState(prev => ({ ...prev, isVisible: false }));
+    }, 50);
+  };
+
+  const handleQuestionClick = (question: string) => {
+    // Hide popup and trigger word click with the question
+    setHoverState(prev => ({ ...prev, isVisible: false }));
+    onWordClick(question);
+  };
+
   if (content) {
-    return <InteractiveContent content={content} onWordClick={onWordClick} />;
+    return (
+      <div style={{ position: 'relative' }}>
+        <InteractiveContent 
+          content={content} 
+          onWordClick={onWordClick}
+          onWordHover={handleWordHover}
+          onWordLeave={handleWordLeave}
+        />
+        <HoverPopup
+          word={hoverState.word}
+          position={hoverState.position}
+          isVisible={hoverState.isVisible}
+          onQuestionClick={handleQuestionClick}
+          onMouseEnter={handlePopupEnter}
+          onMouseLeave={handlePopupLeave}
+          preGeneratedQuestions={relatedQuestions[hoverState.word] || []}
+        />
+      </div>
+    );
   }
   return null;
 };
