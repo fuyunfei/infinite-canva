@@ -13,6 +13,8 @@ interface PromptSettings {
 const DEFAULT_PROMPTS: PromptSettings = {
   contentPrompt: `You are a surreal, infinite encyclopedia. For the term "{topic}", provide few distinct sections that give a concise, encyclopedia-style definition from different perspectives.
 
+{context}
+
 IMPORTANT: Use rich markdown formatting and new bento layout features:
 
 MARKDOWN FORMATTING:
@@ -23,10 +25,50 @@ MARKDOWN FORMATTING:
 - Use > blockquotes for notable quotes or definitions
 - Use ==highlights== for critical insights
 
-BENTO LAYOUT (NEW):
-- Use <flex> containers for side-by-side layouts
-- Use <card> for individual content sections
-- Use <card flex> for flexible/responsive cards
+BENTO LAYOUT SYSTEM:
+
+TAGS DEFINITION:
+- <flex> = Creates horizontal container for side-by-side content
+- <card> = Creates bordered content box with fixed width
+- <card flex> = Creates bordered content box that expands to fill space
+- </flex> = Closes flex container
+- </card> = Closes card container
+
+RULES:
+1. NEVER nest <card> inside <card> 
+2. Only use <card> inside <flex> containers
+3. Each <card> must have </card> closing tag
+4. Each <flex> must have </flex> closing tag
+5. Keep maximum 2-3 cards per flex container
+
+WHEN TO USE:
+- Use <flex> when you want to show related concepts side-by-side
+- Use <card> for short, focused content
+- Use <card flex> for longer content that needs more space
+
+CORRECT EXAMPLES:
+<flex>
+<card>
+## 理论
+核心概念和定义
+</card>
+<card>
+## 实践
+具体应用和例子
+</card>
+</flex>
+
+<flex>
+<card>
+## 要点
+- 关键信息1
+- 关键信息2
+</card>
+<card flex>
+## 详细说明
+长篇详细解释内容，需要更多空间...
+</card>
+</flex>
 
 Write 150 words total with heavy use of formatting and bento layouts.`,
 
@@ -100,8 +142,12 @@ export const usePromptSettings = () => {
     }
   };
 
-  const getContentPrompt = (topic: string, previousTopic?: string | null) => {
-    return prompts.contentPrompt.replace('{topic}', topic);
+  const getContentPrompt = (topic: string, previousTopic?: string | null, context?: string) => {
+    let prompt = prompts.contentPrompt.replace('{topic}', topic);
+    if (context) {
+      prompt = prompt.replace('{context}', context);
+    }
+    return prompt;
   };
 
   const getModifyPrompt = (currentTopic: string, currentContent: string, userPrompt: string) => {

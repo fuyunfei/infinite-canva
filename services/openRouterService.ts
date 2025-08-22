@@ -141,15 +141,25 @@ export async function generateContentCardsStream(
   topic: string,
   previousTopic: string | null | undefined,
   onChunk: (chunk: CardStreamChunk) => void,
-  customPrompt?: string
+  customPrompt?: string,
+  currentPageContext?: string
 ): Promise<void> {
   if (!process.env.OPENROUTER_API_KEY) {
     throw new Error('OPENROUTER_API_KEY is not configured. Please check your environment variables to continue.');
   }
 
   // Use custom prompt if provided, otherwise choose based on whether it's a continuation or a new topic
+  const contextInfo = currentPageContext ? `
+
+CURRENT PAGE CONTEXT:
+"""
+${currentPageContext}
+"""
+
+The user was reading the above content and clicked on "${topic}". Use this context to provide more relevant and connected content.` : '';
+
   const prompt = customPrompt || (previousTopic
-    ? `You are an entry in a surreal, infinite wikipedia in chinese. The user was just reading about "${previousTopic}" and clicked on the word "${topic}". Provide distinct perspective exploring the connection, relationship, or tangential thoughts between these two concepts. 
+    ? `You are an entry in a surreal, infinite wikipedia in chinese. The user was just reading about "${previousTopic}" and clicked on the word "${topic}".${contextInfo} Provide distinct perspective exploring the connection, relationship, or tangential thoughts between these two concepts. 
 
 IMPORTANT: Use rich markdown formatting and new bento layout features:
 
@@ -161,20 +171,55 @@ MARKDOWN FORMATTING:
 - Use > blockquotes for notable quotes or definitions
 - Use ==highlights== for critical insights
 
-BENTO LAYOUT (NEW):
-- Use <flex> containers for side-by-side layouts
-- Use <card> for individual content sections
-- Use <card flex> for flexible/responsive cards
-- Example structure:
-  <flex>
-  <card>Regular card content</card>
-  <card flex>Flexible card that adapts</card>
-  </flex>
+BENTO LAYOUT SYSTEM:
+
+TAGS DEFINITION:
+- <flex> = Creates horizontal container for side-by-side content
+- <card> = Creates bordered content box with fixed width
+- <card flex> = Creates bordered content box that expands to fill space
+- </flex> = Closes flex container
+- </card> = Closes card container
+
+RULES:
+1. NEVER nest <card> inside <card> 
+2. Only use <card> inside <flex> containers
+3. Each <card> must have </card> closing tag
+4. Each <flex> must have </flex> closing tag
+5. Keep maximum 2-3 cards per flex container
+
+WHEN TO USE:
+- Use <flex> when you want to show related concepts side-by-side
+- Use <card> for short, focused content
+- Use <card flex> for longer content that needs more space
+
+CORRECT EXAMPLES:
+<flex>
+<card>
+## 理论
+核心概念和定义
+</card>
+<card>
+## 实践
+具体应用和例子
+</card>
+</flex>
+
+<flex>
+<card>
+## 要点
+- 关键信息1
+- 关键信息2
+</card>
+<card flex>
+## 详细说明
+长篇详细解释内容，需要更多空间...
+</card>
+</flex>
 
 Write 200 words total with heavy use of formatting and bento layouts. 
 reply only in chinese.
 `
-    : `You are a surreal, infinite wikipedia . For the term "${topic}", provide few distinct sections that give a concise, wikipedia-style definition from different perspectives.
+    : `You are a surreal, infinite wikipedia . For the term "${topic}", provide few distinct sections that give a concise, wikipedia-style definition from different perspectives.${contextInfo}
 
 IMPORTANT: Use rich markdown formatting and new bento layout features:
 
@@ -186,15 +231,50 @@ MARKDOWN FORMATTING:
 - Use > blockquotes for notable quotes or definitions
 - Use ==highlights== for critical insights
 
-BENTO LAYOUT (NEW):
-- Use <flex> containers for side-by-side layouts
-- Use <card> for individual content sections
-- Use <card flex> for flexible/responsive cards
-- Example structure:
-  <flex>
-  <card>Regular card content</card>
-  <card flex>Flexible card that adapts</card>
-  </flex>
+BENTO LAYOUT SYSTEM:
+
+TAGS DEFINITION:
+- <flex> = Creates horizontal container for side-by-side content
+- <card> = Creates bordered content box with fixed width
+- <card flex> = Creates bordered content box that expands to fill space
+- </flex> = Closes flex container
+- </card> = Closes card container
+
+RULES:
+1. NEVER nest <card> inside <card> 
+2. Only use <card> inside <flex> containers
+3. Each <card> must have </card> closing tag
+4. Each <flex> must have </flex> closing tag
+5. Keep maximum 2-3 cards per flex container
+
+WHEN TO USE:
+- Use <flex> when you want to show related concepts side-by-side
+- Use <card> for short, focused content
+- Use <card flex> for longer content that needs more space
+
+CORRECT EXAMPLES:
+<flex>
+<card>
+## 理论
+核心概念和定义
+</card>
+<card>
+## 实践
+具体应用和例子
+</card>
+</flex>
+
+<flex>
+<card>
+## 要点
+- 关键信息1
+- 关键信息2
+</card>
+<card flex>
+## 详细说明
+长篇详细解释内容，需要更多空间...
+</card>
+</flex>
 
 Write 150 words total with heavy use of formatting and bento layouts.
 reply only in chinese.

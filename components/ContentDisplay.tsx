@@ -220,9 +220,15 @@ const renderInteractiveText = (
 /**
  * Post-processes elements to handle card and flex containers
  */
-const processCardAndFlexElements = (elements: JSX.Element[]): JSX.Element[] => {
+const processCardAndFlexElements = (elements: JSX.Element[], depth: number = 0): JSX.Element[] => {
   const result: JSX.Element[] = [];
   let i = 0;
+  
+  // Prevent excessive nesting
+  if (depth > 2) {
+    console.warn('Preventing excessive card nesting at depth', depth);
+    return elements.filter(el => !el.props || (!el.props['data-card-start'] && !el.props['data-card-end']));
+  }
   
   while (i < elements.length) {
     const element = elements[i];
@@ -257,7 +263,7 @@ const processCardAndFlexElements = (elements: JSX.Element[]): JSX.Element[] => {
           justifyContent: 'flex-start',
           width: '100%'
         }}>
-          {processCardAndFlexElements(flexContent)}
+          {processCardAndFlexElements(flexContent, depth + 1)}
         </div>
       );
     }
@@ -296,7 +302,7 @@ const processCardAndFlexElements = (elements: JSX.Element[]): JSX.Element[] => {
           wordWrap: 'break-word'
         }}>
           <div className="card-content">
-            {processCardAndFlexElements(cardContent)}
+            {processCardAndFlexElements(cardContent, depth + 1)}
           </div>
         </div>
       );
