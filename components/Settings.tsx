@@ -18,6 +18,10 @@ interface PromptSettings {
   asciiPrompt: string;
 }
 
+interface ApiKeySettings {
+  openRouterApiKey: string;
+}
+
 const DEFAULT_PROMPTS: PromptSettings = {
   contentPrompt: `You are a surreal, infinite encyclopedia. For the term "{topic}", provide few distinct sections that give a concise, encyclopedia-style definition from different perspectives.
 
@@ -133,7 +137,20 @@ Examples:
 
 const Settings: React.FC<SettingsProps> = ({ isOpen, onClose, prompts, onUpdatePrompts, onResetPrompts }) => {
   const [localPrompts, setLocalPrompts] = useState<PromptSettings>(prompts);
-  const [activeTab, setActiveTab] = useState<'content' | 'modify' | 'ascii'>('content');
+  const [activeTab, setActiveTab] = useState<'content' | 'modify' | 'ascii' | 'apikey'>('content');
+  const [apiKey, setApiKey] = useState<string>('');
+
+  // Load API key from localStorage on mount
+  useEffect(() => {
+    try {
+      const storedApiKey = localStorage.getItem('infinite-wiki-api-key');
+      if (storedApiKey) {
+        setApiKey(storedApiKey);
+      }
+    } catch (error) {
+      console.warn('Failed to load API key from localStorage:', error);
+    }
+  }, []);
 
   // Update local state when props change
   useEffect(() => {
@@ -152,12 +169,28 @@ const Settings: React.FC<SettingsProps> = ({ isOpen, onClose, prompts, onUpdateP
   // Save settings
   const saveSettings = () => {
     onUpdatePrompts(localPrompts);
+    
+    // Save API key to localStorage
+    try {
+      if (apiKey.trim()) {
+        localStorage.setItem('infinite-wiki-api-key', apiKey.trim());
+        // Update the environment variable for immediate use
+        (process.env as any).OPENROUTER_API_KEY = apiKey.trim();
+      } else {
+        localStorage.removeItem('infinite-wiki-api-key');
+      }
+    } catch (error) {
+      console.error('Failed to save API key:', error);
+    }
+    
     onClose();
   };
 
   const resetToDefault = () => {
     onResetPrompts();
     setLocalPrompts(DEFAULT_PROMPTS);
+    setApiKey('');
+    localStorage.removeItem('infinite-wiki-api-key');
   };
 
   if (!isOpen) return null;
@@ -219,7 +252,7 @@ const Settings: React.FC<SettingsProps> = ({ isOpen, onClose, prompts, onUpdateP
           marginBottom: '1.5rem',
           borderBottom: '1px solid #f0f0f0'
         }}>
-          {(['content', 'modify', 'ascii'] as const).map((tab) => (
+          {(['content', 'modify', 'ascii', 'apikey'] as const).map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
@@ -235,55 +268,108 @@ const Settings: React.FC<SettingsProps> = ({ isOpen, onClose, prompts, onUpdateP
                 transition: 'all 0.2s'
               }}
             >
-              {tab === 'content' ? 'Content' : tab === 'modify' ? 'Modify' : 'ASCII Art'}
+              {tab === 'content' ? 'Content' : 
+               tab === 'modify' ? 'Modify' : 
+               tab === 'ascii' ? 'ASCII Art' : 'API Key'}
             </button>
           ))}
         </div>
 
         {/* Content */}
         <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-          <textarea
-            className="settings-textarea"
-            value={
-              activeTab === 'content' ? localPrompts.contentPrompt :
-              activeTab === 'modify' ? localPrompts.modifyPrompt :
-              localPrompts.asciiPrompt
-            }
-            onChange={(e) => {
-              const newValue = e.target.value;
-              setLocalPrompts(prev => ({
-                ...prev,
-                [activeTab === 'content' ? 'contentPrompt' : 
-                 activeTab === 'modify' ? 'modifyPrompt' : 'asciiPrompt']: newValue
-              }));
+          {activeTab === 'apikey' ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              <div style={{ marginBottom: '1rem' }}>
+                <h3 style={{ margin: '0 0 0.5rem 0', fontSize: '1.1em', fontWeight: '600' }}>
+                  OpenRouter API Key
+                </h3>
+                <p style={{ margin: '0 0 1rem 0', color: '#666', fontSize: '0.9em', lineHeight: '1.5' }}>
+                  Enter your OpenRouter API key to use the AI features. You can get one from{' '}
+                  <a 
+                    href="https://openrouter.ai/keys" 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    style={{ color: '#0000ff', textDecoration: 'underline' }}
+                  >
+                    openrouter.ai/keys
+                  </a>
+                </p>
+              </div>
               
-              // Auto-resize textarea
-              e.target.style.height = 'auto';
-              e.target.style.height = Math.max(200, e.target.scrollHeight) + 'px';
-            }}
-            style={{
-              minHeight: '200px',
-              maxHeight: '60vh',
-              border: '1px solid #e0e0e0',
-              borderRadius: '8px',
-              padding: '1rem',
-              font: 'inherit',
-              fontSize: '0.9em',
-              lineHeight: '1.5',
-              resize: 'vertical',
-              outline: 'none',
-              transition: 'border-color 0.2s',
-              overflow: 'auto'
-            }}
-            onFocus={(e) => {
-              e.target.style.borderColor = '#666';
-              // Set initial height based on content
-              e.target.style.height = 'auto';
-              e.target.style.height = Math.max(200, e.target.scrollHeight) + 'px';
-            }}
-            onBlur={(e) => e.target.style.borderColor = '#e0e0e0'}
-            placeholder={`Enter ${activeTab} prompt...`}
-          />
+              <input
+                type="password"
+                value={apiKey}
+                onChange={(e) => setApiKey(e.target.value)}
+                placeholder="sk-or-v1-..."
+                style={{
+                  border: '1px solid #e0e0e0',
+                  borderRadius: '8px',
+                  padding: '1rem',
+                  font: 'inherit',
+                  fontSize: '0.9em',
+                  outline: 'none',
+                  transition: 'border-color 0.2s',
+                  fontFamily: 'Monaco, Consolas, "Liberation Mono", "Courier New", monospace'
+                }}
+                onFocus={(e) => e.target.style.borderColor = '#666'}
+                onBlur={(e) => e.target.style.borderColor = '#e0e0e0'}
+              />
+              
+              <div style={{ 
+                padding: '1rem', 
+                backgroundColor: '#f8f9fa', 
+                borderRadius: '8px',
+                border: '1px solid #e9ecef'
+              }}>
+                <p style={{ margin: '0', fontSize: '0.85em', color: '#666', lineHeight: '1.4' }}>
+                  <strong>Note:</strong> Your API key is stored locally in your browser and is not sent to any servers except OpenRouter for AI requests.
+                </p>
+              </div>
+            </div>
+          ) : (
+            <textarea
+              className="settings-textarea"
+              value={
+                activeTab === 'content' ? localPrompts.contentPrompt :
+                activeTab === 'modify' ? localPrompts.modifyPrompt :
+                localPrompts.asciiPrompt
+              }
+              onChange={(e) => {
+                const newValue = e.target.value;
+                setLocalPrompts(prev => ({
+                  ...prev,
+                  [activeTab === 'content' ? 'contentPrompt' : 
+                   activeTab === 'modify' ? 'modifyPrompt' : 'asciiPrompt']: newValue
+                }));
+                
+                // Auto-resize textarea
+                e.target.style.height = 'auto';
+                e.target.style.height = Math.max(200, e.target.scrollHeight) + 'px';
+              }}
+              style={{
+                minHeight: '200px',
+                maxHeight: '60vh',
+                border: '1px solid #e0e0e0',
+                borderRadius: '8px',
+                padding: '1rem',
+                font: 'inherit',
+                fontSize: '0.9em',
+                lineHeight: '1.5',
+                resize: 'vertical',
+                outline: 'none',
+                transition: 'border-color 0.2s',
+                overflow: 'auto'
+              }}
+              onFocus={(e) => {
+                e.target.style.borderColor = '#666';
+                // Set initial height based on content
+                e.target.style.height = 'auto';
+                e.target.style.height = Math.max(200, e.target.scrollHeight) + 'px';
+              }}
+              onBlur={(e) => e.target.style.borderColor = '#e0e0e0'}
+              placeholder={`Enter ${activeTab} prompt...`}
+            />
+          )}
         </div>
 
         {/* Footer */}

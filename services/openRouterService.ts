@@ -3,10 +3,27 @@
  * SPDX-License-Identifier: Apache-2.0
 */
 
-// Check for OpenRouter API key
-if (!process.env.OPENROUTER_API_KEY) {
+// Function to get API key from localStorage or environment
+function getApiKey(): string | undefined {
+  // First try localStorage (user-provided key)
+  try {
+    const storedKey = localStorage.getItem('infinite-wiki-api-key');
+    if (storedKey && storedKey.trim()) {
+      return storedKey.trim();
+    }
+  } catch (error) {
+    console.warn('Failed to read API key from localStorage:', error);
+  }
+  
+  // Fallback to environment variable
+  return process.env.OPENROUTER_API_KEY;
+}
+
+// Check for OpenRouter API key on module load
+const initialApiKey = getApiKey();
+if (!initialApiKey) {
   console.error(
-    'OPENROUTER_API_KEY environment variable is not set. The application will not be able to connect to the OpenRouter API.',
+    'No OpenRouter API key found. Please set OPENROUTER_API_KEY environment variable or add your API key in Settings.',
   );
 }
 
@@ -46,10 +63,15 @@ export type CardStreamChunk =
  * Makes a streaming request to OpenRouter API
  */
 async function* makeOpenRouterStreamRequest(prompt: string, model: string = textModelName) {
+  const apiKey = getApiKey();
+  if (!apiKey) {
+    throw new Error('No API key available. Please add your OpenRouter API key in Settings.');
+  }
+
   const response = await fetch(OPENROUTER_API_URL, {
     method: 'POST',
     headers: {
-      'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
+      'Authorization': `Bearer ${apiKey}`,
       'Content-Type': 'application/json',
       'HTTP-Referer': window.location.origin,
       'X-Title': 'Infinite Wiki'
@@ -105,10 +127,15 @@ async function* makeOpenRouterStreamRequest(prompt: string, model: string = text
  * Makes a non-streaming request to OpenRouter API
  */
 async function makeOpenRouterRequest(prompt: string, model: string = textModelName): Promise<string> {
+  const apiKey = getApiKey();
+  if (!apiKey) {
+    throw new Error('No API key available. Please add your OpenRouter API key in Settings.');
+  }
+
   const response = await fetch(OPENROUTER_API_URL, {
     method: 'POST',
     headers: {
-      'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
+      'Authorization': `Bearer ${apiKey}`,
       'Content-Type': 'application/json',
       'HTTP-Referer': window.location.origin,
       'X-Title': 'Infinite Wiki'
@@ -144,8 +171,9 @@ export async function generateContentCardsStream(
   customPrompt?: string,
   currentPageContext?: string
 ): Promise<void> {
-  if (!process.env.OPENROUTER_API_KEY) {
-    throw new Error('OPENROUTER_API_KEY is not configured. Please check your environment variables to continue.');
+  const apiKey = getApiKey();
+  if (!apiKey) {
+    throw new Error('No API key available. Please add your OpenRouter API key in Settings.');
   }
 
   // Use custom prompt if provided, otherwise choose based on whether it's a continuation or a new topic
@@ -312,8 +340,9 @@ reply only in chinese.
  * @returns A promise that resolves to a single random word.
  */
 export async function getRandomWord(): Promise<string> {
-  if (!process.env.OPENROUTER_API_KEY) {
-    throw new Error('OPENROUTER_API_KEY is not configured.');
+  const apiKey = getApiKey();
+  if (!apiKey) {
+    throw new Error('No API key available. Please add your OpenRouter API key in Settings.');
   }
 
   const prompt = `Generate a single, random, interesting word or a two-word concept. It can be a noun, verb, adjective, or a proper noun. Respond with only the word or concept itself, with no extra text, punctuation, or formatting.`;
@@ -339,8 +368,9 @@ export async function generateAsciiArtStream(
   onChunk: (chunk: string) => void,
   customPrompt?: string
 ): Promise<void> {
-  if (!process.env.OPENROUTER_API_KEY) {
-    throw new Error('OPENROUTER_API_KEY is not configured.');
+  const apiKey = getApiKey();
+  if (!apiKey) {
+    throw new Error('No API key available. Please add your OpenRouter API key in Settings.');
   }
   
   const prompt = customPrompt || `Create simple ASCII art for "${topic}". 
@@ -399,8 +429,9 @@ export async function generateModifiedContentStream(
   customPrompt: string,
   onChunk: (chunk: CardStreamChunk) => void
 ): Promise<void> {
-  if (!process.env.OPENROUTER_API_KEY) {
-    throw new Error('OPENROUTER_API_KEY is not configured. Please check your environment variables to continue.');
+  const apiKey = getApiKey();
+  if (!apiKey) {
+    throw new Error('No API key available. Please add your OpenRouter API key in Settings.');
   }
 
   try {
@@ -492,8 +523,9 @@ export function extractClickableWords(content: string): string[] {
  * Generates related questions for multiple words in a single batch call
  */
 export async function generateBatchRelatedQuestions(words: string[]): Promise<Record<string, string[]>> {
-  if (!process.env.OPENROUTER_API_KEY) {
-    throw new Error('OPENROUTER_API_KEY is not configured.');
+  const apiKey = getApiKey();
+  if (!apiKey) {
+    throw new Error('No API key available. Please add your OpenRouter API key in Settings.');
   }
 
   if (words.length === 0) return {};
@@ -561,8 +593,9 @@ EXAMPLE:
  * Generates related questions for a given word/concept
  */
 export async function generateRelatedQuestions(word: string): Promise<string[]> {
-  if (!process.env.OPENROUTER_API_KEY) {
-    throw new Error('OPENROUTER_API_KEY is not configured.');
+  const apiKey = getApiKey();
+  if (!apiKey) {
+    throw new Error('No API key available. Please add your OpenRouter API key in Settings.');
   }
 
   const prompt = `Generate 3 short, thought-provoking questions related to "${word}". 
